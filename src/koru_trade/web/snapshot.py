@@ -42,6 +42,9 @@ __all__ = [
 MAX_SIGNALS = 300
 """신호 이력 표시 상한. 이보다 많으면 최신 것만 남긴다."""
 
+PRICE_HISTORY_BARS = 90
+"""가격 스파크라인에 쓸 최근 봉 수."""
+
 
 @dataclass(frozen=True, slots=True)
 class DashboardSnapshot:
@@ -59,6 +62,7 @@ class DashboardSnapshot:
     trades: list[dict[str, Any]]
     signals: list[dict[str, Any]]
     equity: list[dict[str, Any]]
+    price_history: list[dict[str, Any]] = field(default_factory=list)
     regime_history: dict[str, Any] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
@@ -147,6 +151,14 @@ def build_snapshot(
         equity=[
             {"ts": ts.date().isoformat(), "value": round(value)}
             for ts, value in result.equity_curve
+        ],
+        price_history=[
+            {
+                "ts": b.ts.date().isoformat(),
+                "close": round(b.close, 4),
+                "krw": round(b.close * b.fx_rate),
+            }
+            for b in bars[-PRICE_HISTORY_BARS:]
         ],
         regime_history=_regime_history(bars, cfg, signals),
         notes=notes,

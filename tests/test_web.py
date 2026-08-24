@@ -321,3 +321,73 @@ class TestServerRoutes:
         with DashboardServer(snapshot_bars, loose_cfg, port=8950) as srv:
             status, _, _ = self._get(srv.url + "api/health")
             assert status == 200
+
+
+class TestPriceHistory:
+    def test_가격_시계열이_담긴다(
+        self, snapshot_bars: tuple[Bar, ...], loose_cfg: StrategyConfig
+    ) -> None:
+        snap = build_snapshot(snapshot_bars, loose_cfg)
+        ph = snap.price_history
+        assert ph
+        assert len(ph) <= len(snapshot_bars)
+        for row in ph:
+            assert row["close"] > 0
+            assert row["krw"] > 0
+            assert len(row["ts"]) == 10
+
+    def test_가격_시계열이_시간순이다(
+        self, snapshot_bars: tuple[Bar, ...], loose_cfg: StrategyConfig
+    ) -> None:
+        ph = build_snapshot(snapshot_bars, loose_cfg).price_history
+        assert [r["ts"] for r in ph] == sorted(r["ts"] for r in ph)
+
+    def test_마지막_가격이_현재가와_같다(
+        self, snapshot_bars: tuple[Bar, ...], loose_cfg: StrategyConfig
+    ) -> None:
+        """스파크라인 끝점과 큰 숫자가 어긋나면 화면이 거짓말을 하는 것이다."""
+        snap = build_snapshot(snapshot_bars, loose_cfg)
+        assert snap.price_history[-1]["close"] == pytest.approx(snap.market["price_usd"], rel=1e-3)
+
+
+class TestRegimeHistory:
+    """왜 신호가 없는지를 화면이 설명할 수 있어야 한다."""
+
+    def test_월별_이력이_생성된다(
+        self, snapshot_bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        rh = build_snapshot(snapshot_bars, cfg).regime_history
+        assert rh["months"]
+        assert rh["filters"]
+        for m in rh["months"]:
+            assert m["bars"] > 0
+            assert 0 <= m["pass_rate"] <= 1
+            assert 0 <= m["passed"] <= m["bars"]
+
+    def test_차단률이_0과_1_사이다(
+        self, snapshot_bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        rh = build_snapshot(snapshot_bars, cfg).regime_history
+        for m in rh["months"]:
+            for name, rate in m["blocks"].items():
+                assert 0 <= rate <= 1, f"{m['month']} {name} 차단률이 범위 밖이다: {rate}"
+
+    def test_데이터충분성은_필터_목록에서_제외된다(
+        self, snapshot_bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        """워밍업 이후에는 항상 통과하므로 히트맵에 넣으면 빈 줄만 생긴다."""
+        rh = build_snapshot(snapshot_bars, cfg).regime_history
+        assert "데이터충분성" not in rh["filters"]
+
+    def test_월이_시간순이다(self, snapshot_bars: tuple[Bar, ...], cfg: StrategyConfig) -> None:
+        rh = build_snapshot(snapshot_bars, cfg).regime_history
+        months = [m["month"] for m in rh["months"]]
+        assert months == sorted(months)
+
+    def test_실데이터에서_최근_차단_원인을_지목한다(
+        self, real_bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        """2026년 KORU 는 ATR 이 폭발해 변동성 필터가 지배적으로 차단한다."""
+        rh = build_snapshot(real_bars, cfg).regime_history
+        assert rh["recent_dominant_blocker"] == "변동성레짐"
+        assert rh["recent_dominant_rate"] > 0.5
