@@ -295,6 +295,7 @@ def _risk_to_dict(s: RiskState) -> dict[str, Any]:
         "consecutive_losses": s.consecutive_losses,
         "manual_halt": s.manual_halt,
         "halt_reasons": list(s.halt_reasons),
+        "cooldown_until": s.cooldown_until.isoformat() if s.cooldown_until else None,
     }
 
 
@@ -307,4 +308,7 @@ def _risk_from_dict(d: dict[str, Any]) -> RiskState:
         consecutive_losses=int(d.get("consecutive_losses", 0)),
         manual_halt=bool(d.get("manual_halt", False)),
         halt_reasons=tuple(d.get("halt_reasons", [])),
+        cooldown_until=(
+            dt.date.fromisoformat(d["cooldown_until"]) if d.get("cooldown_until") else None
+        ),
     )

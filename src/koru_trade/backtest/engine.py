@@ -561,9 +561,12 @@ def _execute_sell(
 
     daily = st.risk.realized_krw_today
     if daily <= -abs(cfg.risk.daily_loss_limit_krw):
+        # 당일 손실 한도는 날짜가 바뀌면 자동으로 풀린다.
         st.risk = st.risk.with_halt(f"당일 손실 {daily:,.0f}원으로 한도 도달")
     if st.risk.consecutive_losses >= cfg.risk.max_consecutive_losses:
-        st.risk = st.risk.with_halt(f"연속 손실 {st.risk.consecutive_losses}회")
+        # 연속 손실은 쿨다운으로 처리한다. 영구 정지로 두면 카운터를 되돌릴
+        # 방법이 없어 봇이 죽는다(이길 수 없으니 카운터가 줄지 않는다).
+        st.risk = st.risk.start_cooldown(cfg.risk.loss_cooldown_days)
 
 
 def _slip(price: float, cfg: StrategyConfig, *, buying: bool) -> float:

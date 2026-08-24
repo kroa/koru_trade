@@ -129,7 +129,15 @@ class RiskConfig:
     """당일 실현손실이 이 금액에 도달하면 당일 매매를 전면 중단한다."""
 
     max_consecutive_losses: int = 3
-    """연속 손절 횟수가 이 값에 도달하면 매매를 중단한다."""
+    """연속 손절 횟수가 이 값에 도달하면 쿨다운에 들어간다."""
+
+    loss_cooldown_days: int = 5
+    """연속 손실 한도에 걸린 뒤 쉬어가는 영업일 수.
+
+    **영구 정지로 만들면 안 된다.** 카운터를 되돌릴 방법이 없어 봇이 죽는다.
+    이길 수 없으니 카운터가 줄지 않고, 카운터가 줄지 않으니 거래할 수 없다.
+    쿨다운이 끝나면 카운터가 0으로 리셋되고 매매가 재개된다.
+    """
 
     max_trades_per_day: int = 3
     """하루 최대 신규 진입 횟수. 과매매 방지."""
@@ -407,6 +415,7 @@ class StrategyConfig:
                 "max_daily_notional_krw": self.risk.max_daily_notional_krw,
                 "daily_loss_limit_krw": self.risk.daily_loss_limit_krw,
                 "max_consecutive_losses": self.risk.max_consecutive_losses,
+                "loss_cooldown_days": self.risk.loss_cooldown_days,
                 "max_trades_per_day": self.risk.max_trades_per_day,
                 "max_open_positions": self.risk.max_open_positions,
             },

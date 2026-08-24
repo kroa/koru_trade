@@ -266,7 +266,8 @@ class LiveRunner:
             if risk.realized_krw_today <= -abs(cfg.risk.daily_loss_limit_krw):
                 risk = risk.with_halt(f"당일 손실 {risk.realized_krw_today:,.0f}원으로 한도 도달")
             if risk.consecutive_losses >= cfg.risk.max_consecutive_losses:
-                risk = risk.with_halt(f"연속 손실 {risk.consecutive_losses}회")
+                risk = risk.start_cooldown(cfg.risk.loss_cooldown_days)
+                logger.warning("연속 손실 한도 도달. %s 까지 쉰다", risk.cooldown_until)
         logger.info(
             "매도 체결 반영: %d주 @ $%.2f, 실현 %s원%s",
             qty,

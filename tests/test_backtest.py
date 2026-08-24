@@ -403,3 +403,29 @@ class TestSweep:
             "stop_atr_multiple",
             "max_holding_days",
         }
+
+
+class TestCooldownRecovery:
+    """연속 손실 뒤에도 매매가 재개되는지. 회귀 방지용."""
+
+    def test_연속손실_후에도_매매가_재개된다(
+        self, real_bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        """쿨다운 도입 전에는 2025-01-30 에 봇이 영구 정지해서
+        이후 1년 반의 진입 신호 44건이 전부 버려졌다."""
+        from koru_trade.models import Action
+
+        res = run_backtest(real_bars, cfg)
+        blocked = [
+            d for d in res.decisions if d.action is Action.BLOCKED and "연속 손실" in d.rationale
+        ]
+        assert not blocked, f"연속 손실로 영구 차단된 신호가 있다: {len(blocked)}건"
+
+    def test_매매가_데이터_끝까지_이어진다(
+        self, real_bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        """마지막 매매가 데이터 끝보다 1년 이상 앞서면 무언가 봇을 죽인 것이다."""
+        res = run_backtest(real_bars, cfg)
+        assert res.trades
+        gap = (real_bars[-1].ts - res.trades[-1].closed_at).days
+        assert gap < 365, f"마지막 매매 이후 {gap}일 공백이다. 봇이 멈췄을 수 있다"

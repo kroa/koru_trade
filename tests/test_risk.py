@@ -11,7 +11,12 @@ import datetime as dt
 import pytest
 
 from koru_trade.config import RiskConfig
-from koru_trade.risk import RiskState, check_entry_allowed, check_scale_in_allowed
+from koru_trade.risk import (
+    RiskState,
+    add_business_days,
+    check_entry_allowed,
+    check_scale_in_allowed,
+)
 
 TODAY = dt.date(2026, 8, 24)
 TOMORROW = dt.date(2026, 8, 25)
@@ -214,3 +219,75 @@ class TestHaltBookkeeping:
         s = state.with_entry(1_000_000).with_scale_in(500_000)
         assert s.notional_krw_today == pytest.approx(1_500_000)
         assert s.entries_today == 1  # 추가매수는 진입 횟수가 아니다
+
+
+class TestCooldown:
+    """연속 손실 한도는 퓨즈가 아니라 회로차단기여야 한다.
+
+    영구 정지로 만들면 카운터를 되돌릴 방법이 없어 봇이 죽는다.
+    이길 수 없으니 카운터가 줄지 않고, 카운터가 줄지 않으니 거래할 수 없다.
+    실제로 이 프로젝트의 백테스트가 2025-01-30 에 그렇게 멈춰서
+    이후 진입 신호 44건이 조용히 버려졌었다. 이 테스트들이 재발을 막는다.
+    """
+
+    def test_쿨다운이_연속손실_카운터를_리셋한다(self, state: RiskState) -> None:
+        """리셋하지 않으면 쿨다운이 끝나자마자 다시 걸려 영구 정지가 된다."""
+        s = state
+        for _ in range(3):
+            s = s.with_realized(-10_000, closed_trade=True)
+        assert s.consecutive_losses == 3
+        s = s.start_cooldown(5)
+        assert s.consecutive_losses == 0
+        assert s.cooldown_until is not None
+
+    def test_쿨다운_중에는_진입이_차단된다(self, state: RiskState, rcfg: RiskConfig) -> None:
+        s = state.start_cooldown(5)
+        reason = check_entry_allowed(s, rcfg, planned_notional_krw=1, open_positions=0)
+        assert reason is not None
+        assert "쿨다운" in reason
+
+    def test_쿨다운_중에는_추가매수도_차단된다(self, state: RiskState, rcfg: RiskConfig) -> None:
+        s = state.start_cooldown(5)
+        assert check_scale_in_allowed(s, rcfg, planned_notional_krw=1) is not None
+
+    def test_쿨다운이_만료되면_스스로_풀린다(self, state: RiskState, rcfg: RiskConfig) -> None:
+        """이것이 없으면 데드락이다. 반드시 자동으로 풀려야 한다."""
+        s = state.start_cooldown(5)
+        assert s.in_cooldown
+        resumed = s.rolled_to(s.cooldown_until)
+        assert not resumed.in_cooldown
+        assert resumed.cooldown_until is None
+        assert check_entry_allowed(resumed, rcfg, planned_notional_krw=1, open_positions=0) is None
+
+    def test_쿨다운_만료_전에는_유지된다(self, state: RiskState) -> None:
+        s = state.start_cooldown(5)
+        mid = s.rolled_to(s.trade_date + dt.timedelta(days=1))
+        assert mid.in_cooldown
+        assert mid.cooldown_until == s.cooldown_until
+
+    def test_쿨다운_일수가_0이면_카운터만_리셋한다(self, state: RiskState) -> None:
+        s = state.with_realized(-1, closed_trade=True).start_cooldown(0)
+        assert s.consecutive_losses == 0
+        assert s.cooldown_until is None
+        assert not s.in_cooldown
+
+    def test_쿨다운도_halted로_집계된다(self, state: RiskState) -> None:
+        assert state.start_cooldown(3).is_halted
+
+
+class TestAddBusinessDays:
+    def test_주말을_건너뛴다(self) -> None:
+        friday = dt.date(2026, 8, 21)
+        assert friday.weekday() == 4
+        assert add_business_days(friday, 1) == dt.date(2026, 8, 24)  # 월요일
+        assert add_business_days(friday, 5) == dt.date(2026, 8, 28)  # 다음 금요일
+
+    def test_0이하면_그대로다(self) -> None:
+        d = dt.date(2026, 8, 24)
+        assert add_business_days(d, 0) == d
+        assert add_business_days(d, -3) == d
+
+    def test_결과는_항상_영업일이다(self) -> None:
+        start = dt.date(2026, 8, 24)
+        for n in range(1, 30):
+            assert add_business_days(start, n).weekday() < 5

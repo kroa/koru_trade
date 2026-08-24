@@ -16,7 +16,12 @@ from dataclasses import dataclass, field, replace
 
 from koru_trade.config import RiskConfig
 
-__all__ = ["RiskState", "check_entry_allowed", "check_scale_in_allowed"]
+__all__ = [
+    "RiskState",
+    "add_business_days",
+    "check_entry_allowed",
+    "check_scale_in_allowed",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,15 +47,28 @@ class RiskState:
     halt_reasons: tuple[str, ...] = field(default_factory=tuple)
     """발동한 킬스위치 사유 기록. 감사추적용."""
 
+    cooldown_until: dt.date | None = None
+    """연속 손실 한도에 걸려 쉬는 중이라면 재개 예정일.
+
+    **회로차단기는 퓨즈가 아니라 리셋되는 것이어야 한다.**
+    연속 손실 한도를 영구 정지로 만들면 카운터를 되돌릴 방법이 없어 봇이 죽는다.
+    이길 수 없으니 카운터가 줄지 않고, 카운터가 줄지 않으니 거래할 수 없다.
+    실제로 이 프로젝트의 백테스트가 2025-01-30 에 그렇게 멈춰서
+    이후 1년 반의 진입 신호 44건이 전부 조용히 버려졌었다.
+    """
+
     def rolled_to(self, new_date: dt.date) -> RiskState:
         """새 거래일로 넘어간 상태를 반환한다.
 
-        일일 집계(손익·투입금액·진입횟수)만 초기화한다.
-        연속 손실 카운터와 수동 정지는 날짜가 바뀌어도 유지된다.
-        하루 자고 일어난다고 전략이 고쳐지지는 않기 때문이다.
+        일일 집계(손익·투입금액·진입횟수)와 당일 킬스위치 사유는 초기화한다.
+        연속 손실 카운터와 수동 정지, 쿨다운은 날짜가 바뀌어도 유지된다
+        (쿨다운은 만료되면 아래에서 스스로 풀린다).
         """
         if new_date <= self.trade_date:
             return self
+        cooldown = self.cooldown_until
+        if cooldown is not None and new_date >= cooldown:
+            cooldown = None
         return RiskState(
             trade_date=new_date,
             realized_krw_today=0.0,
@@ -58,6 +76,7 @@ class RiskState:
             entries_today=0,
             consecutive_losses=self.consecutive_losses,
             manual_halt=self.manual_halt,
+            cooldown_until=cooldown,
             halt_reasons=(),
         )
 
@@ -97,9 +116,48 @@ class RiskState:
             return self
         return replace(self, halt_reasons=(*self.halt_reasons, reason))
 
+    def start_cooldown(self, days: int) -> RiskState:
+        """연속 손실 한도에 걸렸을 때 쿨다운을 시작한다.
+
+        ``days`` 영업일 뒤로 재개일을 잡고 **연속 손실 카운터를 0으로 되돌린다.**
+        카운터를 되돌리지 않으면 쿨다운이 끝나자마자 다시 걸려 영구 정지가 된다.
+
+        Args:
+            days: 쉬어갈 영업일 수. 0 이하면 아무것도 하지 않는다.
+        """
+        if days <= 0:
+            return replace(self, consecutive_losses=0)
+        return replace(
+            self,
+            consecutive_losses=0,
+            cooldown_until=add_business_days(self.trade_date, days),
+        )
+
+    @property
+    def in_cooldown(self) -> bool:
+        """쿨다운 기간 중인지."""
+        return self.cooldown_until is not None and self.trade_date < self.cooldown_until
+
     @property
     def is_halted(self) -> bool:
-        return self.manual_halt or bool(self.halt_reasons)
+        return self.manual_halt or bool(self.halt_reasons) or self.in_cooldown
+
+
+def add_business_days(start: dt.date, days: int) -> dt.date:
+    """``start`` 에서 영업일 ``days`` 만큼 뒤의 날짜(주말 제외, 공휴일 무시).
+
+    쿨다운을 달력일로 세면 금요일에 걸린 것과 화요일에 걸린 것이
+    실제로 쉬는 거래일 수가 달라진다.
+    """
+    if days <= 0:
+        return start
+    cursor = start
+    remaining = days
+    while remaining > 0:
+        cursor += dt.timedelta(days=1)
+        if cursor.weekday() < 5:
+            remaining -= 1
+    return cursor
 
 
 def check_entry_allowed(
@@ -121,6 +179,9 @@ def check_entry_allowed(
 
     if state.halt_reasons:
         return f"킬스위치 발동 상태다: {', '.join(state.halt_reasons)}"
+
+    if state.in_cooldown:
+        return f"연속 손실 쿨다운 중이다. {state.cooldown_until} 부터 재개한다"
 
     if state.realized_krw_today <= -abs(cfg.daily_loss_limit_krw):
         return (
@@ -175,6 +236,9 @@ def check_scale_in_allowed(
 
     if state.halt_reasons:
         return f"킬스위치 발동 상태다: {', '.join(state.halt_reasons)}"
+
+    if state.in_cooldown:
+        return f"연속 손실 쿨다운 중이다. {state.cooldown_until} 부터 재개한다"
 
     if state.realized_krw_today <= -abs(cfg.daily_loss_limit_krw):
         return (
