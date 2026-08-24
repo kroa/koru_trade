@@ -70,19 +70,26 @@ PLACEHOLDER_MARKERS = (
 
 
 def _iter_repo_files() -> list[Path]:
-    """검사 대상 파일 목록. git 이 추적하는 파일을 우선 쓴다."""
+    """검사 대상 파일 목록.
+
+    ``--cached --others --exclude-standard`` 로 **추적 중인 파일과 아직 git 에 추가하지
+    않은 파일을 모두** 가져오고, ``.gitignore`` 대상은 제외한다.
+
+    ``git ls-files`` 만 쓰면 추적되지 않은 새 파일을 놓친다. 자격증명을 새 파일에
+    적어 넣은 직후가 가장 위험한 시점인데, 하필 그때 검사가 통과해 버린다.
+    """
     try:
         out = subprocess.run(
-            ["git", "ls-files"],
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
             cwd=REPO,
             capture_output=True,
             text=True,
             check=True,
             timeout=30,
         )
-        tracked = [REPO / line for line in out.stdout.splitlines() if line.strip()]
-        if tracked:
-            return [p for p in tracked if p.is_file()]
+        listed = {REPO / line for line in out.stdout.splitlines() if line.strip()}
+        if listed:
+            return sorted(p for p in listed if p.is_file())
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         pass
 
@@ -191,6 +198,32 @@ class TestNoSecretsInRepo:
                 if pattern.search(line) and not _looks_like_placeholder(line):
                     hits.append(f"{path.relative_to(REPO)}:{lineno}")
         assert not hits, f"KIS 앱키로 보이는 문자열이 있다: {hits}"
+
+    def test_키_이름에_붙은_긴_리터럴이_없다(self, repo_files: list[Path]) -> None:
+        """변수명이 key/secret/token/password 인데 긴 문자열이 붙어 있으면 유출이다.
+
+        형식(길이·대소문자)에만 의존하는 탐지는 규격이 조금 달라지면 놓친다.
+        **변수 이름**을 함께 보면 훨씬 잘 잡힌다.
+        """
+        pattern = re.compile(
+            r"""(?ix)
+            \b\w*(?:app_?key|app_?secret|api_?key|secret_?key|access_?token
+                    |auth_?token|password|passwd)\w*
+            \s*[:=]\s*
+            ['\"]([A-Za-z0-9+/=_-]{20,})['\"]
+            """
+        )
+        hits: list[str] = []
+        for path in repo_files:
+            if path.suffix not in (".py", ".toml", ".yaml", ".yml", ".json", ".cfg", ".ini"):
+                continue
+            text = _readable(path)
+            if text is None:
+                continue
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if pattern.search(line) and not _looks_like_placeholder(line):
+                    hits.append(f"{path.relative_to(REPO)}:{lineno}")
+        assert not hits, f"자격증명 변수에 실제 값이 박혀 있다: {hits}"
 
     def test_긴_시크릿_형식_문자열이_없다(self, repo_files: list[Path]) -> None:
         """KIS 앱시크릿은 대문자/숫자 100자 이상이다."""
