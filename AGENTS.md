@@ -82,6 +82,7 @@ python scripts/verify.py lint      # 특정 게이트만
 | `backtest/` | 결정론·현금보존·look-ahead 없음을 재확인 |
 | `broker/kis.py` | `responses` 로 모킹. **실제 서버를 부르는 테스트 금지** |
 | `config.py` | 왕복 직렬화 + 알 수 없는 키 거부 |
+| `web/` | 루프백 바인딩 유지 + JSON 에 NaN 없음 + 자격증명 미포함 |
 | 무엇이든 | `python scripts/verify.py` 전체 통과 |
 
 ### 절대 하지 말 것
@@ -176,9 +177,13 @@ src/koru_trade/
 │   ├── kis.py         한국투자증권 REST 클라이언트
 │   ├── paper.py       페이퍼 브로커
 │   └── ratelimit.py   유량 제한 + 재시도
-└── live/
-    ├── runner.py      실거래 루프
-    └── state.py       SQLite 상태 영속화
+├── live/
+│   ├── runner.py      실거래 루프
+│   └── state.py       SQLite 상태 영속화
+└── web/
+    ├── snapshot.py    대시보드 데이터 조립 (HTTP 를 모르는 순수 로직)
+    ├── server.py      로컬 HTTP 서버 (표준 라이브러리만)
+    └── static/        dashboard.html (외부 리소스 0개)
 ```
 
 ### 지켜야 할 구조적 불변식
@@ -264,6 +269,23 @@ KIS 주문 API 에 이 파라미터가 있지만, **서버가 중복을 거부�
 `NaN` 은 모든 비교가 `False` 라서 `if value <= 0` 검사를 그냥 통과한다.
 시세 API 나 pandas 결측치가 그대로 흘러들어오면 백테스트 전체가 조용히 오염된다.
 `Bar.__post_init__` 이 `math.isfinite()` 로 먼저 막는다. **이 검사를 지우지 마라.**
+
+### 대시보드는 루프백에만 연다
+
+포지션과 손익은 개인 금융정보다. `DashboardServer` 는 루프백이 아닌 host 를
+**거부한다**. 편의를 위해 `0.0.0.0` 으로 여는 변경은 받지 않는다.
+
+Windows 의 `SO_REUSEADDR` 은 유닉스와 의미가 달라서 **이미 LISTEN 중인 포트에도
+바인딩이 성공한다.** 빈 포트를 찾는다면서 사용자가 띄워 둔 다른 프로그램의 포트를
+빼앗게 된다. `_apply_exclusive()` 가 `SO_EXCLUSIVEADDRUSE` 를 걸어 이를 막는다.
+`is_port_free()` 는 bind 와 connect 를 **둘 다** 검사한다. 하나만으로는 부족하다.
+
+### JSON 에 NaN 을 흘리지 마라
+
+파이썬 `json.dumps` 는 `NaN`/`Infinity` 를 그대로 뱉지만 브라우저의 `JSON.parse` 는
+이를 거부한다. 값 하나 때문에 대시보드 전체가 백지가 된다.
+`snapshot_to_json()` 이 `allow_nan=False` 와 `_sanitize()` 로 막는다.
+Profit Factor 는 전승 시 무한대가 되므로 실제로 발생하는 경로다.
 
 ### 익절 기준 수량
 

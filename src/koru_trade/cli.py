@@ -55,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         "tick": _cmd_tick,
         "status": _cmd_status,
         "doctor": _cmd_doctor,
+        "web": _cmd_web,
     }
     try:
         return handlers[args.command](args, cfg)
@@ -120,6 +121,12 @@ def _build_parser() -> argparse.ArgumentParser:
     st.add_argument("--state", default="state/koru_state.db", help="상태 DB 경로")
 
     sub.add_parser("doctor", help="설정과 자격증명 점검")
+
+    wb = sub.add_parser("web", help="로컬 웹 대시보드 실행")
+    add_data_args(wb)
+    wb.add_argument("--port", type=int, default=8642, help="포트 (사용 중이면 다음 빈 포트)")
+    wb.add_argument("--state", default="state/koru_state.db", help="상태 DB 경로")
+    wb.add_argument("--open", action="store_true", help="브라우저를 자동으로 연다")
     return p
 
 
@@ -393,6 +400,38 @@ def _cmd_doctor(args: argparse.Namespace, cfg: StrategyConfig) -> int:  # noqa: 
     else:
         print("    [누락] .gitignore 파일이 없다")
     return 0 if ok else 1
+
+
+def _cmd_web(args: argparse.Namespace, cfg: StrategyConfig) -> int:
+    """로컬 대시보드를 띄운다. 루프백에만 바인딩된다."""
+    from pathlib import Path as _P
+
+    from koru_trade.live import StateStore
+    from koru_trade.web import DashboardServer
+
+    bars = _load(args, cfg)
+    store = StateStore(args.state) if _P(args.state).exists() else None
+    if store is None:
+        print(f"상태 DB 가 없다({args.state}). 실계좌 구역은 비어 있게 표시된다.")
+
+    server = DashboardServer(bars, cfg, store=store, port=args.port)
+    print()
+    print("=" * 74)
+    print(f"  KORU 대시보드가 열렸다 -> {server.url}")
+    print("=" * 74)
+    print(
+        f"  종목      {cfg.symbol}  ({bars[0].ts:%Y-%m-%d} ~ {bars[-1].ts:%Y-%m-%d}, {len(bars)}봉)"
+    )
+    print("  바인딩    127.0.0.1 전용 (다른 기기에서는 접근 불가)")
+    print("  중지      Ctrl+C")
+    print()
+    if args.open:
+        import threading
+        import webbrowser
+
+        threading.Timer(0.8, lambda: webbrowser.open(server.url)).start()
+    server.serve_forever()
+    return 0
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -37,6 +37,9 @@ koru = "koru_trade.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+koru_trade = ["web/static/*.html"]
+
 # ---------------------------------------------------------------------------
 # 하네스 게이트 1: pytest — 커버리지 미달 시 실패
 # ---------------------------------------------------------------------------
@@ -54,6 +57,7 @@ addopts = [
 ]
 markers = [
     "network: 외부 네트워크가 필요한 테스트 (기본 실행에서 제외됨)",
+    "web: 로컬 HTTP 서버를 띄우는 테스트",
     "slow: 실행이 오래 걸리는 테스트",
 ]
 filterwarnings = ["error::DeprecationWarning:koru_trade.*"]
