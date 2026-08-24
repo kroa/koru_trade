@@ -105,6 +105,23 @@ cp .env.example .env                     # 자격증명 입력
 
 `make setup` 한 줄로도 된다.
 
+### 프리셋
+
+| 파일 | 성격 | 3년 실측 (원화) |
+|---|---|---|
+| `config/strategy.example.yaml` | 기본 — 5일 보유, ATR ≤ 8% | 20건 · +4.67% · PF 1.39 |
+| `config/daytrade.example.yaml` | **일일 단타** — 1일 보유, ATR ≤ 20% | 36건 · +12.38% · PF 1.85 |
+
+```bash
+cp config/daytrade.example.yaml config/strategy.yaml
+python -m koru_trade --config config/strategy.yaml backtest --trades
+```
+
+단타 프리셋을 고른 기준은 누적수익률이 아니라 **일관성**이다 —
+워크포워드 4구간 중 3구간 수익(기본은 2구간), 파산위험 4.6% → 0.8%.
+다만 부트스트랩 95% 신뢰구간이 0을 포함하므로 우위가 입증된 것은 아니다.
+자세한 근거와 한계는 파일 상단 주석에 있다.
+
 ### 자격증명
 
 [한국투자증권 API 포털](https://apiportal.koreainvestment.com)에서 앱키를 발급받아

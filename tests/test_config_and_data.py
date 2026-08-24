@@ -224,3 +224,44 @@ class TestRealFixture:
     def test_환율이_현실적_범위다(self, real_bars: tuple[Bar, ...]) -> None:
         for b in real_bars:
             assert 800 < b.fx_rate < 2500
+
+
+class TestShippedPresets:
+    """저장소에 포함된 예시 설정이 실제로 로딩되는지.
+
+    문서에만 있고 깨진 설정 파일은 사용자를 오도한다.
+    """
+
+    @pytest.mark.parametrize("name", ["strategy.example.yaml", "daytrade.example.yaml"])
+    def test_예시_설정이_로딩된다(self, name: str) -> None:
+        from pathlib import Path as _P
+
+        path = _P(__file__).resolve().parent.parent / "config" / name
+        assert path.exists(), f"{name} 이 없다"
+        cfg = load_strategy_config(path)
+        assert cfg.symbol == "KORU"
+
+    def test_단타_프리셋이_기본과_두_항목만_다르다(self) -> None:
+        """프리셋 문서가 '딱 두 가지만 바꿨다' 고 주장한다. 실제로 그런지 확인한다."""
+        from dataclasses import fields
+        from pathlib import Path as _P
+
+        base = StrategyConfig()
+        day = load_strategy_config(
+            _P(__file__).resolve().parent.parent / "config" / "daytrade.example.yaml"
+        )
+        diff = {
+            f.name for f in fields(StrategyConfig) if getattr(base, f.name) != getattr(day, f.name)
+        }
+        assert diff == {"max_holding_days", "max_atr_pct"}, f"예상 밖의 차이: {diff}"
+        assert day.max_holding_days == 1
+        assert day.max_atr_pct == pytest.approx(0.20)
+
+    def test_단타_프리셋의_익절_계단이_기본과_같다(self) -> None:
+        """계단을 압축하면 기대값이 무너진다는 실측 근거를 코드로 고정한다."""
+        from pathlib import Path as _P
+
+        day = load_strategy_config(
+            _P(__file__).resolve().parent.parent / "config" / "daytrade.example.yaml"
+        )
+        assert day.take_profit == StrategyConfig().take_profit
