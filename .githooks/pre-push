@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+#
+# 푸시 전 전체 검증. pre-commit 을 --no-verify 로 우회했더라도 여기서 막힌다.
+set -e
+
+if [ -x ".venv/Scripts/python.exe" ]; then
+    PYTHON=".venv/Scripts/python.exe"
+elif [ -x ".venv/bin/python" ]; then
+    PYTHON=".venv/bin/python"
+else
+    PYTHON="python"
+fi
+
+echo ""
+echo "[pre-push] 전체 하네스 검증을 실행한다..."
+"$PYTHON" scripts/verify.py
+
+echo "[pre-push] 통과. 푸시를 진행한다."

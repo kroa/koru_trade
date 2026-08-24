@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+#
+# 하네스 게이트 - 커밋 전 검증
+#
+# 이 훅은 scripts/verify.py 를 실행한다. 하나라도 실패하면 커밋이 거부된다.
+# "테스트가 통과해야만 완료" 규칙을 사람의 의지가 아니라 도구로 강제하는 지점이다.
+#
+# 설치:  git config core.hooksPath .githooks
+# 우회:  git commit --no-verify   (원칙적으로 금지. 쓰려면 사유를 커밋 메시지에 남겨라)
+
+set -e
+
+if [ -x ".venv/Scripts/python.exe" ]; then
+    PYTHON=".venv/Scripts/python.exe"
+elif [ -x ".venv/bin/python" ]; then
+    PYTHON=".venv/bin/python"
+else
+    PYTHON="python"
+fi
+
+echo ""
+echo "[pre-commit] 하네스 검증을 실행한다..."
+"$PYTHON" scripts/verify.py
+
+echo "[pre-commit] 통과. 커밋을 진행한다."

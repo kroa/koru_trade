@@ -1,0 +1,36 @@
+# gitleaks 설정 — 한국투자증권 API 자격증명 탐지 규칙 추가
+title = "KORU Trade gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "kis-app-key"
+description = "한국투자증권 Open API 앱키"
+regex = '''\bPS[A-Z0-9]{34}\b'''
+tags = ["key", "kis"]
+
+[[rules]]
+id = "kis-app-secret"
+description = "한국투자증권 Open API 앱시크릿"
+regex = '''(?i)(app_?secret|appsecret)\s*[:=]\s*['"]?[A-Za-z0-9+/=]{100,}'''
+tags = ["secret", "kis"]
+
+[[rules]]
+id = "kis-account-no"
+description = "증권 계좌번호 리터럴"
+regex = '''(?i)(CANO|account_no)\s*[:=]\s*['"]?\d{8,}'''
+tags = ["pii", "kis"]
+
+[allowlist]
+description = "예시·테스트용 자리표시자는 허용"
+regexes = [
+  '''(?i)(FAKE|EXAMPLE|SAMPLE|DUMMY|PLACEHOLDER|YOUR_)''',
+  '''0{6,}''',
+  '''X{4,}''',
+]
+paths = [
+  '''\.env\.example$''',
+  '''(^|/)tests/''',
+  '''\.gitleaks\.toml$''',
+]

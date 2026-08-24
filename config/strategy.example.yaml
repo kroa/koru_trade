@@ -1,0 +1,70 @@
+# KORU 전략 설정 예시
+#
+# 사용법:  cp config/strategy.example.yaml config/strategy.yaml
+#          python -m koru_trade --config config/strategy.yaml gate
+#
+# config/strategy.yaml 은 .gitignore 대상이다(개인 자본금이 들어가므로).
+# 이 예시 파일에는 자격증명이 들어갈 자리가 아예 없다 - 앱키/계좌번호는
+# 환경변수(.env)에서만 읽는다.
+#
+# 알 수 없는 키를 쓰면 로딩 시점에 오류가 난다. 오타가 조용히 무시되지 않는다.
+# ---------------------------------------------------------------------------
+symbol: KORU
+exchange: AMS
+capital_krw: 3000000.0
+scale_in:
+- atr_multiple: 0.0
+  weight: 0.4
+- atr_multiple: 0.7
+  weight: 0.35
+- atr_multiple: 1.4
+  weight: 0.25
+scale_in_requires_reclaim: true
+take_profit:
+- krw_return: 0.05
+  sell_fraction: 0.3
+- krw_return: 0.09
+  sell_fraction: 0.3
+- krw_return: 0.14
+  sell_fraction: 0.25
+- krw_return: 0.2
+  sell_fraction: 0.15
+breakeven_stop_after_tp: 1
+stop_atr_multiple: 2.0
+max_stop_pct: 0.12
+min_stop_pct: 0.04
+hard_stop_krw_return: -0.1
+trailing_after_tp: 2
+trailing_giveback: 0.35
+max_holding_days: 5
+atr_period: 14
+rsi_period: 14
+ema_fast: 10
+ema_slow: 30
+max_atr_pct: 0.08
+min_rsi: 45.0
+max_rsi: 70.0
+min_adx: 18.0
+max_gap_pct: 0.05
+min_avg_dollar_volume: 3000000.0
+fx_lookback_days: 20
+max_fx_decline: -0.03
+fx_max_level: null
+limit_slippage_bps: 15.0
+use_market_order_on_stop: true
+cost:
+  buy_fee_rate: 0.0007
+  sell_fee_rate: 0.0007
+  sec_fee_rate: 2.78e-05
+  finra_taf_per_share: 0.000166
+  fx_spread_buy: 0.0025
+  fx_spread_sell: 0.0025
+  slippage_rate: 0.0015
+  fx_mode: CONVERT
+risk:
+  max_position_krw: 5000000.0
+  max_daily_notional_krw: 3000000.0
+  daily_loss_limit_krw: 300000.0
+  max_consecutive_losses: 3
+  max_trades_per_day: 3
+  max_open_positions: 1
