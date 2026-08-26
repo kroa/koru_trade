@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 1
 
-    cfg = load_strategy_config(args.config) if args.config else StrategyConfig()
+    cfg = _resolve_config(args.config)
     handlers = {
         "gate": _cmd_gate,
         "backtest": _cmd_backtest,
@@ -76,6 +76,32 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
 
+ACTIVE_CONFIG = Path("config/strategy.yaml")
+"""``--config`` 를 주지 않았을 때 자동으로 쓰는 설정 파일.
+
+프리셋 문서가 "cp config/daytrade.example.yaml config/strategy.yaml" 이라고
+안내하므로, 그렇게 복사한 사용자는 별도 인자 없이 그 설정이 적용되기를 기대한다.
+이 경로가 없으면 조용히 기본값을 쓴다.
+"""
+
+
+def _resolve_config(explicit: str | None) -> StrategyConfig:
+    """적용할 전략 설정을 정한다.
+
+    우선순위는 ``--config`` > ``config/strategy.yaml`` > 내장 기본값이다.
+    어느 것을 썼는지 **항상 로그로 알린다.** 어떤 설정으로 돌고 있는지
+    모른 채 실거래를 돌리는 것이 가장 위험하다.
+    """
+    if explicit:
+        logger.info("전략 설정: %s", explicit)
+        return load_strategy_config(explicit)
+    if ACTIVE_CONFIG.exists():
+        logger.info("전략 설정: %s (자동 적용)", ACTIVE_CONFIG)
+        return load_strategy_config(ACTIVE_CONFIG)
+    logger.info("전략 설정: 내장 기본값 (config/strategy.yaml 없음)")
+    return StrategyConfig()
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="koru",
@@ -84,7 +110,11 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=__doc__,
     )
     p.add_argument("--version", action="version", version=f"koru-trade {__version__}")
-    p.add_argument("--config", help="전략 설정 YAML 경로")
+    p.add_argument(
+        "--config",
+        help="전략 설정 YAML 경로. 생략하면 config/strategy.yaml 이 있으면 그것을, "
+        "없으면 내장 기본값을 쓴다",
+    )
     p.add_argument("--log-level", default="INFO", help="DEBUG/INFO/WARNING/ERROR")
 
     sub = p.add_subparsers(dest="command")
@@ -498,7 +528,7 @@ def _cmd_watch(args: argparse.Namespace, cfg: StrategyConfig) -> int:
     print(f"  알림      {'텔레그램 연결됨' if notifier.enabled else '꺼짐 (.env 미설정)'}")
     print(f"  상태 DB   {_P(args.state).resolve()}")
     print("  중지      Ctrl+C")
-    print()
+    print(flush=True)
 
     ticks = 0
     while True:
@@ -507,7 +537,9 @@ def _cmd_watch(args: argparse.Namespace, cfg: StrategyConfig) -> int:
             bars = _load(args, cfg)
             result = runner.tick(bars)
             stamp = __import__("datetime").datetime.now().strftime("%H:%M:%S")
-            print(f"[{stamp}] #{ticks} {result.summary()}")
+            # flush 하지 않으면 파이프로 넘길 때 출력이 버퍼에 갇혀
+            # 몇 시간 동안 아무것도 안 보인다. 멈춘 것과 구분이 안 된다.
+            print(f"[{stamp}] #{ticks} {result.summary()}", flush=True)
         except KeyboardInterrupt:
             print("\n감시를 중단한다.")
             return 130

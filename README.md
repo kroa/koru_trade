@@ -117,8 +117,13 @@ cp .env.example .env                     # 자격증명 입력
 
 ```bash
 cp config/daytrade.example.yaml config/strategy.yaml
-python -m koru_trade --config config/strategy.yaml backtest --trades
+python -m koru_trade backtest --trades
 ```
+
+`config/strategy.yaml` 이 있으면 `--config` 없이도 자동 적용된다
+(우선순위: `--config` > `config/strategy.yaml` > 내장 기본값).
+어느 설정으로 도는지는 실행할 때마다 로그에 찍힌다 — 어떤 설정인지 모른 채
+실거래를 돌리는 것이 가장 위험하다.
 
 **분봉 단타는 실측상 권장하지 않는다.** 5분봉 ATR(0.70%)이 왕복 거래비용(0.64%)과
 거의 같아서 한 봉 움직임만큼 벌어야 겨우 본전이고, 원화 +5% 목표는 1시간 안에

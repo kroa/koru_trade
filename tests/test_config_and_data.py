@@ -377,3 +377,44 @@ class TestIntradayLoading:
         assert bars[0].fx_rate == pytest.approx(1390.0)
         assert bars[1].fx_rate == pytest.approx(1390.0)  # 이월
         assert bars[-1].fx_rate == pytest.approx(1395.0)
+
+
+class TestActiveConfigResolution:
+    """--config 없이도 config/strategy.yaml 이 적용되는지.
+
+    프리셋 문서가 "cp config/daytrade.example.yaml config/strategy.yaml" 이라고
+    안내하는데 CLI 가 그 파일을 무시하면, 사용자는 프리셋을 적용했다고 믿으면서
+    실제로는 내장 기본값으로 매매하게 된다.
+    """
+
+    def test_명시한_경로가_최우선이다(self, tmp_path, monkeypatch) -> None:
+        import yaml
+
+        from koru_trade.cli import _resolve_config
+
+        data = StrategyConfig().to_dict()
+        data["max_holding_days"] = 7
+        explicit = tmp_path / "explicit.yaml"
+        explicit.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        assert _resolve_config(str(explicit)).max_holding_days == 7
+
+    def test_없으면_활성_설정을_쓴다(self, tmp_path, monkeypatch) -> None:
+        import yaml
+
+        from koru_trade.cli import _resolve_config
+
+        data = StrategyConfig().to_dict()
+        data["max_holding_days"] = 3
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "strategy.yaml").write_text(
+            yaml.safe_dump(data, allow_unicode=True), encoding="utf-8"
+        )
+        monkeypatch.chdir(tmp_path)
+        assert _resolve_config(None).max_holding_days == 3
+
+    def test_둘_다_없으면_기본값이다(self, tmp_path, monkeypatch) -> None:
+        from koru_trade.cli import _resolve_config
+
+        monkeypatch.chdir(tmp_path)
+        assert _resolve_config(None) == StrategyConfig()
