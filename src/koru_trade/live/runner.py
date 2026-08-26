@@ -37,6 +37,8 @@ from koru_trade.models import (
     OrderType,
     Position,
 )
+from koru_trade.notify.base import NotifyResult, NullNotifier, SignalNotifier
+from koru_trade.notify.format import format_blocked, format_decision
 from koru_trade.pnl import krw_cost, krw_proceeds, position_krw_return
 from koru_trade.risk import RiskState
 from koru_trade.strategy import decide
@@ -84,10 +86,33 @@ class LiveRunner:
         cfg: 전략 설정.
     """
 
-    def __init__(self, broker: Broker, store: StateStore, cfg: StrategyConfig) -> None:
+    def __init__(
+        self,
+        broker: Broker,
+        store: StateStore,
+        cfg: StrategyConfig,
+        *,
+        notifier: SignalNotifier | None = None,
+    ) -> None:
         self._broker = broker
         self._store = store
         self._cfg = cfg
+        self._notifier: SignalNotifier = notifier or NullNotifier()
+
+    def _notify(self, text: str, *, key: str | None = None) -> NotifyResult:
+        """알림을 보낸다. 실패해도 매매 루프는 계속된다.
+
+        알림 채널이 죽었다고 주문을 못 내면 안 된다. 그래서 여기서
+        어떤 예외도 위로 올리지 않는다.
+        """
+        try:
+            result = self._notifier.send(text, dedupe_key=key)
+        except Exception as exc:
+            logger.warning("알림 전송 중 예외: %s", type(exc).__name__)
+            return NotifyResult.fail(type(exc).__name__)
+        if not result.ok:
+            logger.warning("알림 전송 실패: %s", result.detail)
+        return result
 
     def tick(self, bars: Sequence[Bar], *, now: dt.datetime | None = None) -> RunnerResult:
         """1회 판단하고 필요하면 주문을 낸다.
@@ -128,6 +153,12 @@ class LiveRunner:
         )
         logger.info("[%s] %s", decision.action.value, decision.rationale)
 
+        if decision.action is Action.BLOCKED:
+            self._notify(
+                format_blocked(decision.rationale, cfg, now=ts),
+                key=f"blocked-{ts.date()}-{hash(decision.rationale) & 0xFFFF:04x}",
+            )
+
         if not decision.is_actionable:
             self._store.save_risk(risk)
             return RunnerResult(decision, None, None, position, krw_r)
@@ -148,6 +179,17 @@ class LiveRunner:
         )
 
         if result.status in (OrderStatus.ACCEPTED, OrderStatus.DRY_RUN):
+            self._notify(
+                format_decision(
+                    decision,
+                    last,
+                    position,
+                    cfg,
+                    dry_run=result.status is OrderStatus.DRY_RUN,
+                    now=ts,
+                ),
+                key=order.client_order_id,
+            )
             position, risk = self._apply(
                 decision,
                 order,

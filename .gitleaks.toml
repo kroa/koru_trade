@@ -22,6 +22,12 @@ description = "증권 계좌번호 리터럴"
 regex = '''(?i)(CANO|account_no)\s*[:=]\s*['"]?\d{8,}'''
 tags = ["pii", "kis"]
 
+[[rules]]
+id = "telegram-bot-token"
+description = "텔레그램 봇 토큰"
+regex = '''\b\d{8,12}:[A-Za-z0-9_-]{30,}\b'''
+tags = ["secret", "telegram"]
+
 [allowlist]
 description = "예시·테스트용 자리표시자는 허용"
 regexes = [

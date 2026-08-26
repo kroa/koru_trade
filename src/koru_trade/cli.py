@@ -16,6 +16,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from koru_trade.config import (
     StrategyConfig,
@@ -26,6 +27,10 @@ from koru_trade.config import (
 )
 from koru_trade.models import Bar
 from koru_trade.version import __version__
+
+if TYPE_CHECKING:
+    from koru_trade.broker.base import Broker
+    from koru_trade.notify.base import SignalNotifier
 
 logger = logging.getLogger("koru_trade")
 
@@ -56,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
         "status": _cmd_status,
         "doctor": _cmd_doctor,
         "web": _cmd_web,
+        "watch": _cmd_watch,
+        "notify-test": _cmd_notify_test,
     }
     try:
         return handlers[args.command](args, cfg)
@@ -127,7 +134,26 @@ def _build_parser() -> argparse.ArgumentParser:
     wb.add_argument("--port", type=int, default=8642, help="포트 (사용 중이면 다음 빈 포트)")
     wb.add_argument("--state", default="state/koru_state.db", help="상태 DB 경로")
     wb.add_argument("--open", action="store_true", help="브라우저를 자동으로 연다")
+
+    wt = sub.add_parser("watch", help="주기적으로 감시하며 신호를 알림")
+    add_data_args(wt)
+    wt.add_argument("--interval", type=int, default=900, help="점검 주기(초). 기본 900=15분")
+    wt.add_argument("--state", default="state/koru_state.db", help="상태 DB 경로")
+    wt.add_argument("--paper", action="store_true", help="페이퍼 브로커 사용")
+    wt.add_argument("--once", action="store_true", help="한 번만 점검하고 종료")
+
+    sub.add_parser("notify-test", help="텔레그램 설정 점검 및 테스트 메시지 발송")
     return p
+
+
+def _build_notifier() -> SignalNotifier:
+    """환경변수에서 알림 채널을 만든다. 설정이 없으면 조용히 끈다."""
+    from koru_trade.notify import NullNotifier, TelegramNotifier, load_telegram_config
+
+    conf = load_telegram_config()
+    if conf is None:
+        return NullNotifier()
+    return TelegramNotifier(conf)
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +280,6 @@ def _cmd_sweep(args: argparse.Namespace, cfg: StrategyConfig) -> int:
 
 
 def _cmd_tick(args: argparse.Namespace, cfg: StrategyConfig) -> int:
-    from koru_trade.broker.base import Broker
     from koru_trade.broker.paper import PaperBroker
     from koru_trade.live import LiveRunner, StateStore
     from koru_trade.models import Quote
@@ -285,7 +310,10 @@ def _cmd_tick(args: argparse.Namespace, cfg: StrategyConfig) -> int:
         print(f"KIS 브로커 ({cred.env.value}) / DRY_RUN={dry}")
 
     store = StateStore(args.state)
-    runner = LiveRunner(broker, store, cfg)
+    notifier = _build_notifier()
+    if notifier.enabled:
+        print("텔레그램 알림이 연결되어 있다")
+    runner = LiveRunner(broker, store, cfg, notifier=notifier)
     result = runner.tick(bars)
 
     print("\n" + "=" * 74)
@@ -400,6 +428,115 @@ def _cmd_doctor(args: argparse.Namespace, cfg: StrategyConfig) -> int:  # noqa: 
     else:
         print("    [누락] .gitignore 파일이 없다")
     return 0 if ok else 1
+
+
+def _cmd_notify_test(args: argparse.Namespace, cfg: StrategyConfig) -> int:  # noqa: ARG001
+    """텔레그램 자격증명을 확인하고 테스트 메시지를 보낸다."""
+    from koru_trade.notify import TelegramNotifier, load_telegram_config
+
+    conf = load_telegram_config()
+    if conf is None:
+        print("텔레그램이 설정되지 않았다.")
+        print("  .env 에 TELEGRAM_BOT_TOKEN 과 TELEGRAM_CHAT_ID 를 채워라.")
+        print("  자세한 방법은 .env.example 주석 참조.")
+        return 1
+
+    print(f"설정 확인: {conf}")
+    notifier = TelegramNotifier(conf)
+    check = notifier.check()
+    print(f"  연결: {'OK' if check.ok else '실패'} — {check.detail}")
+    if not check.ok:
+        return 2
+
+    body = "\n".join(
+        [
+            "✅ <b>KORU 알림 연결됨</b>",
+            "",
+            f"종목   {cfg.symbol}",
+            f"1회 예산 {cfg.capital_krw:,.0f}원",
+            "익절   원화 " + " / ".join(f"{s.krw_return:+.0%}" for s in cfg.take_profit),
+            f"손절   원화 {cfg.hard_stop_krw_return:+.0%}",
+            "",
+            "<i>이제 매수/매도 신호가 나면 여기로 알려준다.</i>",
+        ]
+    )
+    result = notifier.send(body)
+    print(f"  발송: {'OK' if result.ok else '실패'} — {result.detail}")
+    return 0 if result.ok else 3
+
+
+def _cmd_watch(args: argparse.Namespace, cfg: StrategyConfig) -> int:
+    """주기적으로 시세를 받아 판단하고, 신호가 나면 알림을 보낸다."""
+    import time
+    from pathlib import Path as _P
+
+    from koru_trade.live import LiveRunner, StateStore
+    from koru_trade.notify.format import format_error
+
+    notifier = _build_notifier()
+    store = StateStore(args.state)
+    broker = _make_broker(args, cfg)
+    runner = LiveRunner(broker, store, cfg, notifier=notifier)
+
+    print("=" * 74)
+    print(f"  KORU 감시 시작 · {cfg.symbol}")
+    print("=" * 74)
+    print(f"  주기      {args.interval}초")
+    print(f"  알림      {'텔레그램 연결됨' if notifier.enabled else '꺼짐 (.env 미설정)'}")
+    print(f"  상태 DB   {_P(args.state).resolve()}")
+    print("  중지      Ctrl+C")
+    print()
+
+    ticks = 0
+    while True:
+        ticks += 1
+        try:
+            bars = _load(args, cfg)
+            result = runner.tick(bars)
+            stamp = __import__("datetime").datetime.now().strftime("%H:%M:%S")
+            print(f"[{stamp}] #{ticks} {result.summary()}")
+        except KeyboardInterrupt:
+            print("\n감시를 중단한다.")
+            return 130
+        except Exception as exc:
+            logger.error("점검 실패: %s: %s", type(exc).__name__, exc)
+            notifier.send(format_error(exc, context="watch"))
+
+        if args.once:
+            return 0
+        try:
+            time.sleep(args.interval)
+        except KeyboardInterrupt:
+            print("\n감시를 중단한다.")
+            return 130
+
+
+def _make_broker(args: argparse.Namespace, cfg: StrategyConfig) -> Broker:
+    """CLI 인자에 맞는 브로커를 만든다."""
+    from koru_trade.broker.paper import PaperBroker
+    from koru_trade.models import Quote
+
+    if getattr(args, "paper", False):
+        bars = _load(args, cfg)
+        last = bars[-1]
+
+        def quote_source(symbol: str) -> Quote:
+            return Quote(
+                symbol=symbol,
+                last=last.close,
+                bid=last.close * 0.999,
+                ask=last.close * 1.001,
+                ts=last.ts,
+                fx_rate=last.fx_rate,
+            )
+
+        broker: Broker = PaperBroker(quote_source)
+        return broker
+
+    from koru_trade.broker.kis import KisBroker
+
+    cred = load_credentials()
+    return KisBroker(cred, exchange=cfg.exchange, dry_run=is_dry_run())
 
 
 def _cmd_web(args: argparse.Namespace, cfg: StrategyConfig) -> int:

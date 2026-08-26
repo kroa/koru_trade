@@ -274,6 +274,23 @@ class TestNoSecretsInRepo:
                     hits.append(f"{path.relative_to(REPO)}:{lineno}  {match.group()}")
         assert not hits, f"이메일 주소가 소스에 있다: {hits}"
 
+    def test_텔레그램_봇_토큰이_없다(self, repo_files: list[Path]) -> None:
+        """텔레그램 봇 토큰은 `숫자ID:35자` 형태다.
+
+        이 토큰 하나면 누구나 그 봇으로 메시지를 보내고 받을 수 있다.
+        계좌 자격증명과 같은 등급으로 취급한다.
+        """
+        pattern = re.compile(r"\b\d{8,12}:[A-Za-z0-9_-]{30,}\b")
+        hits: list[str] = []
+        for path in repo_files:
+            text = _readable(path)
+            if text is None:
+                continue
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if pattern.search(line) and not _looks_like_placeholder(line):
+                    hits.append(f"{path.relative_to(REPO)}:{lineno}")
+        assert not hits, f"텔레그램 봇 토큰으로 보이는 문자열이 있다: {hits}"
+
     def test_bearer_토큰_리터럴이_없다(self, repo_files: list[Path]) -> None:
         pattern = re.compile(r"Bearer\s+[A-Za-z0-9._-]{20,}")
         hits: list[str] = []
@@ -373,6 +390,23 @@ class TestRuntimeSafety:
         for word in ("app_key", "appsecret", "account", "token", "password"):
             assert word not in text.lower()
 
+    def test_텔레그램_설정이_repr에_노출되지_않는다(self) -> None:
+        from koru_trade.notify import TelegramConfig
+
+        token = "1234567890:FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAK"
+        chat = "987654321"
+        conf = TelegramConfig(bot_token=token, chat_id=chat)
+        for text in (repr(conf), str(conf), f"{conf}"):
+            assert token not in text
+            assert chat not in text
+
+    def test_알림이_없어도_매매는_계속된다(self) -> None:
+        """알림 설정이 없다고 봇이 죽으면 안 된다."""
+        from koru_trade.notify import load_telegram_config
+
+        assert load_telegram_config({}) is None
+        assert load_telegram_config({"TELEGRAM_BOT_TOKEN": "x"}) is None
+
     def test_마스킹_함수가_원문을_숨긴다(self) -> None:
         from koru_trade.config import mask_secret
 
@@ -382,3 +416,49 @@ class TestRuntimeSafety:
         assert masked.startswith("PSFA")
         assert mask_secret(None) == "<미설정>"
         assert mask_secret("ab") == "**"
+
+
+class TestScannerConfigIntegrity:
+    """검사 설정 파일 자체가 멀쩡한지.
+
+    깨진 gitleaks 설정은 오류를 내지 않고 **조용히 아무것도 검사하지 않는다.**
+    보호받고 있다고 착각하게 만드는 것이 가장 위험한 상태다.
+    실제로 이 저장소의 규칙 두 개가 정규식 안의 단어 경계(\b)가
+    백스페이스 문자(0x08)로 들어가 무력화돼 있었다.
+    """
+
+    @pytest.fixture
+    def gitleaks(self) -> dict:
+        import tomllib
+
+        path = REPO / ".gitleaks.toml"
+        assert path.exists(), ".gitleaks.toml 이 없다"
+        with path.open("rb") as fh:
+            return tomllib.load(fh)
+
+    def test_TOML로_파싱된다(self, gitleaks: dict) -> None:
+        assert "rules" in gitleaks
+
+    def test_필수_규칙이_있다(self, gitleaks: dict) -> None:
+        ids = {r["id"] for r in gitleaks["rules"]}
+        assert {"kis-app-key", "kis-app-secret", "kis-account-no", "telegram-bot-token"} <= ids
+
+    def test_모든_정규식이_컴파일된다(self, gitleaks: dict) -> None:
+        for rule in gitleaks["rules"]:
+            re.compile(rule["regex"])
+
+    def test_제어문자가_섞이지_않았다(self) -> None:
+        """0x08 같은 제어문자가 들어가면 정규식이 조용히 죽는다."""
+        for name in (".gitleaks.toml", ".env.example", ".gitignore"):
+            raw = (REPO / name).read_bytes()
+            bad = [b for b in set(raw) if b < 9 or 11 <= b <= 12 or 14 <= b <= 31]
+            assert not bad, f"{name} 에 제어문자가 있다: {[hex(b) for b in bad]}"
+
+    def test_규칙이_실제_형식을_잡아낸다(self, gitleaks: dict) -> None:
+        """규칙이 있다고 동작하는 것은 아니다. 표본으로 확인한다."""
+        rules = {r["id"]: re.compile(r["regex"]) for r in gitleaks["rules"]}
+        # 표본은 문자열 연결로 만든다. 통짜로 적으면 이 파일 자체가
+        # 시크릿 스캔에 걸린다(그게 정상 동작이다).
+        assert rules["kis-app-key"].search("PS" + "A1" * 17)
+        assert rules["telegram-bot-token"].search("8012345678" + ":" + "Ab3" * 12)
+        assert rules["kis-account-no"].search("CANO = " + '"' + "5012" + "3456" + '"')
