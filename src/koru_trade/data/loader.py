@@ -30,10 +30,24 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "DataUnavailableError",
     "bars_from_frame",
+    "is_intraday",
     "load_bars",
     "load_bars_from_csv",
     "save_bars_to_csv",
 ]
+
+DAILY_INTERVALS = frozenset({"1d", "5d", "1wk", "1mo", "3mo"})
+"""일봉 이상 간격. 이 외에는 전부 분봉/시간봉으로 취급한다."""
+
+
+def is_intraday(interval: str) -> bool:
+    """분봉/시간봉 간격인지.
+
+    >>> is_intraday("5m"), is_intraday("1h"), is_intraday("1d")
+    (True, True, False)
+    """
+    return interval.strip().lower() not in DAILY_INTERVALS
+
 
 DEFAULT_FX_TICKER = "KRW=X"
 """yfinance 의 USD/KRW 티커. 값은 '1달러당 원' 이다."""
@@ -75,6 +89,9 @@ def load_bars(
     cache_path: Path | None = None
     if cache_dir is not None:
         cache_path = Path(cache_dir) / f"{symbol}_{interval}_{period}.csv"
+        # 분봉은 훨씬 빨리 낡는다. 일봉과 같은 수명을 주면 장중에 옛 봉으로 판단한다.
+        if is_intraday(interval):
+            max_cache_age_hours = min(max_cache_age_hours, 0.25)
         cached = _read_fresh_cache(cache_path, max_cache_age_hours)
         if cached is not None:
             logger.info("캐시에서 %s 봉 %d개를 읽었다", symbol, len(cached))
@@ -96,27 +113,33 @@ def load_bars(
     if fx is None or fx.empty:
         raise DataUnavailableError(f"환율({fx_ticker})을 받을 수 없다")
 
-    bars = bars_from_frame(px, fx["Close"])
+    bars = bars_from_frame(px, fx["Close"], intraday=is_intraday(interval))
     if cache_path is not None:
         save_bars_to_csv(bars, cache_path)
     return bars
 
 
-def bars_from_frame(price_frame: Any, fx_series: Any) -> tuple[Bar, ...]:
+def bars_from_frame(price_frame: Any, fx_series: Any, *, intraday: bool = False) -> tuple[Bar, ...]:
     """pandas DataFrame/Series 를 :class:`Bar` 튜플로 변환한다.
 
     Args:
         price_frame: ``Open/High/Low/Close/Volume`` 컬럼을 가진 DataFrame.
             **조정주가여야 한다.**
         fx_series: USD/KRW 종가 Series.
+        intraday: 분봉/시간봉이면 True. **이 값을 틀리면 데이터가 조용히 망가진다.**
+            일봉 경로는 인덱스를 날짜로 절삭(``normalize``)해 환율과 맞추는데,
+            그 절삭을 분봉에 적용하면 하루치 봉이 전부 같은 자정 시각이 되고
+            중복 제거에 걸려 **하루에 한 봉만 남는다**(338봉 -> 5봉).
 
     Returns:
-        시간 오름차순 봉. 환율이 없는 앞부분 날짜는 버린다.
+        시간 오름차순 봉. 환율이 없는 앞부분은 버린다.
+        분봉이면 타임스탬프는 **미국 동부시(ET) 벽시계 시각**이다 —
+        장 마감 청산 같은 시간대 규칙을 쓸 수 있게 하기 위함이다.
     """
     px = price_frame.copy()
     fx = fx_series.copy()
-    px.index = _normalize_index(px.index)
-    fx.index = _normalize_index(fx.index)
+    px.index = _normalize_index(px.index, intraday=intraday)
+    fx.index = _normalize_index(fx.index, intraday=intraday)
     px = px[~px.index.duplicated(keep="last")].sort_index()
     fx = fx[~fx.index.duplicated(keep="last")].sort_index()
 
@@ -217,12 +240,25 @@ def _read_fresh_cache(path: Path, max_age_hours: float) -> tuple[Bar, ...] | Non
         return None
 
 
-def _normalize_index(index: Any) -> Any:
-    """타임존을 제거하고 날짜 단위로 정규화한다. 정렬 실패의 주범을 없앤다."""
+def _normalize_index(index: Any, *, intraday: bool = False) -> Any:
+    """인덱스를 tz 없는 값으로 만든다.
+
+    타임존이 있으면 **미국 동부시로 변환한 뒤** 떼어낸다. 그래야 남은 naive 시각이
+    거래소 벽시계와 같아져서 "장 마감 10분 전" 같은 규칙을 쓸 수 있다.
+    단순히 tz 를 떼면(=UTC 로 읽으면) 시간대 규칙이 전부 어긋난다.
+
+    일봉일 때만 날짜로 절삭한다. 분봉에 절삭을 적용하면 하루치가 전부
+    같은 자정 시각이 되어 중복 제거에 쓸려 나간다.
+    """
     idx = index
     tz = getattr(idx, "tz", None)
     if tz is not None:
+        convert = getattr(idx, "tz_convert", None)
+        if callable(convert):
+            idx = convert("America/New_York")
         idx = idx.tz_localize(None)
+    if intraday:
+        return idx
     normalize = getattr(idx, "normalize", None)
     return normalize() if callable(normalize) else idx
 

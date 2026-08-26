@@ -113,11 +113,17 @@ cp .env.example .env                     # 자격증명 입력
 |---|---|---|
 | `config/strategy.example.yaml` | 기본 — 5일 보유, ATR ≤ 8% | 20건 · +4.67% · PF 1.39 |
 | `config/daytrade.example.yaml` | **일일 단타** — 1일 보유, ATR ≤ 20% | 36건 · +12.38% · PF 1.85 |
+| `config/intraday.example.yaml` | 분봉 단타 — 15분봉, 오버나이트 금지 | 29건 · +0.53% · PF 1.10 |
 
 ```bash
 cp config/daytrade.example.yaml config/strategy.yaml
 python -m koru_trade --config config/strategy.yaml backtest --trades
 ```
+
+**분봉 단타는 실측상 권장하지 않는다.** 5분봉 ATR(0.70%)이 왕복 거래비용(0.64%)과
+거의 같아서 한 봉 움직임만큼 벌어야 겨우 본전이고, 원화 +5% 목표는 1시간 안에
+11% 밖에 닿지 않는다. 오버나이트를 금지한 진짜 단타로 측정하면 1시간봉 -2.05%,
+5분봉 -1.62%, 15분봉만 +1.25%(29건, 표본 부족)였다. 근거는 파일 상단 주석에 있다.
 
 단타 프리셋을 고른 기준은 누적수익률이 아니라 **일관성**이다 —
 워크포워드 4구간 중 3구간 수익(기본은 2구간), 파산위험 4.6% → 0.8%.
@@ -191,7 +197,13 @@ TELEGRAM_CHAT_ID=...
 
 python -m koru_trade notify-test          # 연결 확인
 python -m koru_trade watch --interval 900 # 15분마다 점검하며 감시
+
+# 분봉으로 감시 (--bar 로 봉 간격 지정)
+python -m koru_trade watch --bar 15m --interval 300     --config config/intraday.example.yaml
 ```
+
+`--bar` 는 봉 간격, `--interval` 은 점검 주기(초)다. 분봉은 yfinance 제약으로
+조회 기간이 짧다 — 5m·15m 은 60일, 1h 은 730일까지만 받아진다.
 
 받게 되는 메시지:
 

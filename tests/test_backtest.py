@@ -429,3 +429,77 @@ class TestCooldownRecovery:
         assert res.trades
         gap = (real_bars[-1].ts - res.trades[-1].closed_at).days
         assert gap < 365, f"마지막 매매 이후 {gap}일 공백이다. 봇이 멈췄을 수 있다"
+
+
+class TestIntradaySessionClose:
+    """마감 청산이 켜져 있으면 오버나이트 보유가 0이어야 한다.
+
+    이 검사가 없어서 1시간봉에서 마감 기준(15:50)이 마지막 봉(15:30)보다
+    늦게 잡혀 한 번도 발동하지 않았고, 164건 중 146건을 밤새 들고 있었다.
+    "단타" 라고 부르면서 오버나이트 갭을 정면으로 맞고 있던 것이다.
+    """
+
+    @staticmethod
+    def _intraday(minutes: int, days: int = 12):
+        """세션(09:30~16:00)만 있는 분봉을 만든다."""
+        import datetime as _dt
+
+        from koru_trade.models import Bar
+
+        bars = []
+        price = 20.0
+        day = _dt.date(2026, 6, 1)
+        made = 0
+        while made < days:
+            if day.weekday() < 5:
+                t = _dt.datetime.combine(day, _dt.time(9, 30))
+                end = _dt.datetime.combine(day, _dt.time(16, 0))
+                while t < end:
+                    price *= 1.0 + (0.004 if (len(bars) // 7) % 2 == 0 else -0.003)
+                    bars.append(
+                        Bar(
+                            t, price * 0.999, price * 1.006, price * 0.994, price, 1_000_000, 1400.0
+                        )
+                    )
+                    t += _dt.timedelta(minutes=minutes)
+                made += 1
+            day += _dt.timedelta(days=1)
+        return bars
+
+    @pytest.mark.parametrize("minutes", [5, 15, 60])
+    def test_마감_청산이_켜지면_오버나이트가_없다(self, minutes: int) -> None:
+        from koru_trade.pnl import CostModel, FxMode
+
+        bars = self._intraday(minutes)
+        cfg = StrategyConfig(
+            cost=CostModel(fx_mode=FxMode.HOLD_USD),
+            max_holding_bars=max(2, 60 // minutes),
+            close_minutes_before_session_end=10,
+            max_atr_pct=0.99,
+            min_rsi=0.0,
+            max_rsi=100.0,
+            min_adx=0.0,
+            max_gap_pct=0.99,
+            min_avg_dollar_volume=0.0,
+            max_fx_decline=-0.99,
+        )
+        res = run_backtest(bars, cfg)
+        overnight = [t for t in res.trades if t.opened_at.date() != t.closed_at.date()]
+        assert not overnight, (
+            f"{minutes}분봉에서 오버나이트 보유가 {len(overnight)}건 있다. "
+            "마감 청산 기준이 마지막 봉보다 늦게 잡혔을 수 있다"
+        )
+
+    def test_봉_간격이_추정된다(self) -> None:
+        from koru_trade.strategy import bar_interval_minutes
+
+        for minutes in (5, 15, 60):
+            bars = self._intraday(minutes, days=3)
+            assert bar_interval_minutes(bars) == pytest.approx(minutes)
+
+    def test_밤사이_공백이_간격_추정을_망치지_않는다(self) -> None:
+        """마지막 봉 15:30 -> 다음날 09:30 은 1080분이다. 이걸 간격으로 잡으면 안 된다."""
+        from koru_trade.strategy import bar_interval_minutes
+
+        bars = self._intraday(60, days=5)
+        assert bar_interval_minutes(bars) == pytest.approx(60)

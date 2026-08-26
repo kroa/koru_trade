@@ -601,3 +601,79 @@ class TestConfigValidation:
         assert min(thresholds) == pytest.approx(0.05)
         assert max(thresholds) == pytest.approx(0.20)
         assert sum(s.sell_fraction for s in cfg.take_profit) == pytest.approx(1.0)
+
+
+class TestIntradayStops:
+    """분봉 전용 청산 규칙. 영업일 기준 타임스톱은 분봉에서 작동하지 않는다."""
+
+    @staticmethod
+    def _intraday_bars(n: int, start_hour: int = 10, minutes: int = 5):
+        """ET 벽시계 기준 분봉."""
+        base = dt.datetime(2026, 8, 26, start_hour, 0)
+        return [
+            make_bar(close=20.0, fx=1400.0, ts=base + dt.timedelta(minutes=minutes * i))
+            for i in range(n)
+        ]
+
+    def test_봉_수_상한에_도달하면_청산한다(
+        self, cfg: StrategyConfig, fresh_risk: RiskState
+    ) -> None:
+        c = replace(cfg, max_holding_bars=6)
+        bars = self._intraday_bars(10)
+        pos = open_position(qty=100, price=20.0, atr=1.0, ts=bars[0].ts)
+        d = decide(bars, pos, fresh_risk, c, now=bars[-1].ts)
+        assert d.action is Action.EXIT
+        assert d.reason is ExitReason.TIME_STOP
+        assert "봉" in d.rationale
+
+    def test_상한_전에는_유지한다(self, cfg: StrategyConfig, fresh_risk: RiskState) -> None:
+        c = replace(cfg, max_holding_bars=20)
+        bars = self._intraday_bars(10)
+        pos = open_position(qty=100, price=20.0, atr=1.0, ts=bars[0].ts)
+        assert decide(bars, pos, fresh_risk, c, now=bars[-1].ts).action is not Action.EXIT
+
+    def test_봉_상한이_영업일_상한을_대체한다(
+        self, cfg: StrategyConfig, fresh_risk: RiskState
+    ) -> None:
+        """분봉에서 영업일은 0이라 max_holding_days 로는 절대 청산되지 않는다."""
+        bars = self._intraday_bars(50)
+        pos = open_position(qty=100, price=20.0, atr=1.0, ts=bars[0].ts)
+        # 봉 상한 없음 -> 하루 안이라 타임스톱 안 걸림
+        no_bars = replace(cfg, max_holding_days=1)
+        assert decide(bars, pos, fresh_risk, no_bars, now=bars[-1].ts).action is not Action.EXIT
+        # 봉 상한 설정 -> 걸림
+        with_bars = replace(cfg, max_holding_bars=10)
+        assert decide(bars, pos, fresh_risk, with_bars, now=bars[-1].ts).action is Action.EXIT
+
+    def test_장_마감_전에_전량_청산한다(self, cfg: StrategyConfig, fresh_risk: RiskState) -> None:
+        """오버나이트 갭을 피하는 진짜 단타 규칙."""
+        c = replace(cfg, close_minutes_before_session_end=10)
+        bars = [make_bar(close=20.0, fx=1400.0, ts=dt.datetime(2026, 8, 26, 15, 50))]
+        pos = open_position(qty=100, price=20.0, atr=1.0, ts=dt.datetime(2026, 8, 26, 10, 0))
+        d = decide(bars, pos, fresh_risk, c, now=bars[-1].ts)
+        assert d.action is Action.EXIT
+        assert d.qty == 100
+        assert "마감" in d.rationale
+
+    def test_마감_전이_아니면_유지한다(self, cfg: StrategyConfig, fresh_risk: RiskState) -> None:
+        c = replace(cfg, close_minutes_before_session_end=10)
+        bars = [make_bar(close=20.0, fx=1400.0, ts=dt.datetime(2026, 8, 26, 14, 0))]
+        pos = open_position(qty=100, price=20.0, atr=1.0, ts=dt.datetime(2026, 8, 26, 10, 0))
+        assert decide(bars, pos, fresh_risk, c, now=bars[-1].ts).action is not Action.EXIT
+
+    def test_마감_청산은_기본적으로_꺼져있다(
+        self, cfg: StrategyConfig, fresh_risk: RiskState
+    ) -> None:
+        """일봉 경로에서는 봉 시각이 자정이라 켜져 있으면 항상 청산돼 버린다."""
+        assert cfg.close_minutes_before_session_end is None
+        bars = [make_bar(close=20.0, fx=1400.0, ts=dt.datetime(2026, 8, 26, 15, 59))]
+        pos = open_position(qty=100, price=20.0, atr=1.0, ts=dt.datetime(2026, 8, 26, 10, 0))
+        assert decide(bars, pos, fresh_risk, cfg, now=bars[-1].ts).action is not Action.EXIT
+
+    def test_잘못된_설정은_거부된다(self) -> None:
+        with pytest.raises(ValueError, match="max_holding_bars"):
+            StrategyConfig(max_holding_bars=0)
+        with pytest.raises(ValueError, match="close_minutes_before_session_end"):
+            StrategyConfig(close_minutes_before_session_end=500)
+        with pytest.raises(ValueError, match="session_end_et"):
+            StrategyConfig(session_end_et="이상한값")

@@ -43,6 +43,7 @@ __all__ = [
     "EntryCheck",
     "EntrySignal",
     "allocate_tranches",
+    "bar_interval_minutes",
     "business_days_between",
     "decide",
     "evaluate_entry",
@@ -124,6 +125,44 @@ def scale_in_trigger_price(position: Position, tranche_index: int, cfg: Strategy
         raise ValueError(f"존재하지 않는 차수다: {tranche_index}")
     entry = position.first_entry_price_usd
     return entry - position.entry_atr_usd * cfg.scale_in[tranche_index].atr_multiple
+
+
+def bar_interval_minutes(bars: Sequence[Bar]) -> float | None:
+    """봉 간격(분)을 데이터에서 추정한다.
+
+    최근 구간의 **양수 간격 중 최솟값**을 쓴다. 평균이나 최댓값을 쓰면
+    밤사이 공백(마지막 봉 15:30 -> 다음 날 09:30 = 1080분)이 섞여 들어와
+    간격이 터무니없이 커진다.
+
+    Returns:
+        분 단위 간격. 봉이 2개 미만이면 None.
+    """
+    if len(bars) < 2:
+        return None
+    window = bars[max(1, len(bars) - 30) :]
+    prev = bars[max(0, len(bars) - 31)]
+    gaps: list[float] = []
+    for bar in window:
+        delta = (bar.ts - prev.ts).total_seconds() / 60.0
+        if delta > 0:
+            gaps.append(delta)
+        prev = bar
+    return min(gaps) if gaps else None
+
+
+def _bars_since(bars: Sequence[Bar], opened: dt.datetime) -> int:
+    """진입 봉 이후 지나간 봉 개수.
+
+    뒤에서부터 세다가 진입 시각 이전을 만나면 멈춘다. 보유 기간이 짧은
+    단타에서는 전체 히스토리를 훑지 않아도 되므로 비용이 거의 없다.
+    진입 봉 자체는 0으로 센다(그 봉에서는 아직 아무것도 지나지 않았다).
+    """
+    held = 0
+    for bar in reversed(bars):
+        if bar.ts <= opened:
+            break
+        held += 1
+    return held
 
 
 def business_days_between(start: dt.datetime, end: dt.datetime) -> int:
@@ -531,21 +570,59 @@ def _decide_open(
                 metrics={**metrics, "trail_floor": floor},
             )
 
-    # (5) 타임 스톱 ---------------------------------------------------------
-    opened = position.opened_at
-    if opened is not None:
-        held = business_days_between(opened, ts)
-        if held >= cfg.max_holding_days:
+    # (5-a) 장 마감 전 청산 --------------------------------------------------
+    # 오버나이트 갭을 피하는 단타 규칙. 봉 타임스탬프가 ET 벽시계라는 전제다.
+    cutoff_min = cfg.close_minutes_before_session_end
+    if cutoff_min is not None:
+        # 봉 간격보다 좁은 여유는 의미가 없다. 1시간봉의 마지막 봉은 15:30 인데
+        # 15:50 을 기준으로 잡으면 영영 발동하지 않고 밤새 들고 가게 된다.
+        interval = bar_interval_minutes(bars) or 0.0
+        margin = max(float(cutoff_min), interval)
+        end = cfg.session_end_time
+        cutoff = (dt.datetime.combine(ts.date(), end) - dt.timedelta(minutes=margin)).time()
+        if ts.time() >= cutoff:
             return Decision(
                 Action.EXIT,
                 qty=position.qty,
                 reason=ExitReason.TIME_STOP,
                 rationale=(
-                    f"보유 {held}영업일로 최대 보유기간 {cfg.max_holding_days}일에 도달했다. "
-                    f"현재 원화수익률 {krw_r:+.2%}. 레버리지 감쇠를 피해 청산한다"
+                    f"장 마감({cfg.session_end_et} ET) 직전 봉이다"
+                    f"(여유 {margin:.0f}분, 봉 간격 {interval:.0f}분). "
+                    f"현재 원화수익률 {krw_r:+.2%}. 오버나이트 갭을 피해 전량 청산한다"
                 ),
-                metrics={**metrics, "held_days": float(held)},
+                metrics=metrics,
             )
+
+    # (5-b) 타임 스톱 -------------------------------------------------------
+    opened = position.opened_at
+    if opened is not None:
+        if cfg.max_holding_bars is not None:
+            # 분봉에서는 영업일이 의미가 없다. 진입 봉 이후 지나간 봉을 센다.
+            held_bars = _bars_since(bars, opened)
+            if held_bars >= cfg.max_holding_bars:
+                return Decision(
+                    Action.EXIT,
+                    qty=position.qty,
+                    reason=ExitReason.TIME_STOP,
+                    rationale=(
+                        f"보유 {held_bars}봉으로 상한 {cfg.max_holding_bars}봉에 도달했다. "
+                        f"현재 원화수익률 {krw_r:+.2%}. 레버리지 감쇠를 피해 청산한다"
+                    ),
+                    metrics={**metrics, "held_bars": float(held_bars)},
+                )
+        else:
+            held = business_days_between(opened, ts)
+            if held >= cfg.max_holding_days:
+                return Decision(
+                    Action.EXIT,
+                    qty=position.qty,
+                    reason=ExitReason.TIME_STOP,
+                    rationale=(
+                        f"보유 {held}영업일로 최대 보유기간 {cfg.max_holding_days}일에 도달했다. "
+                        f"현재 원화수익률 {krw_r:+.2%}. 레버리지 감쇠를 피해 청산한다"
+                    ),
+                    metrics={**metrics, "held_days": float(held)},
+                )
 
     # (6) 원화 분할 익절 계단 -----------------------------------------------
     triggered = tuple(

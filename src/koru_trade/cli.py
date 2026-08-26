@@ -90,7 +90,13 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command")
 
     def add_data_args(sp: argparse.ArgumentParser) -> None:
-        sp.add_argument("--period", default="3y", help="조회 기간 (1y/3y/5y/max)")
+        sp.add_argument("--period", default="3y", help="조회 기간 (1y/3y/5y/max/60d)")
+        sp.add_argument(
+            "--bar",
+            default="1d",
+            help="봉 간격: 1d(기본) / 1h / 15m / 5m. "
+            "분봉은 yfinance 제약으로 기간이 짧다(5m·15m=60일, 1h=730일)",
+        )
         sp.add_argument("--csv", help="CSV 파일에서 읽기(네트워크 미사용)")
         sp.add_argument("--no-cache", action="store_true", help="캐시를 쓰지 않는다")
 
@@ -166,9 +172,16 @@ def _load(args: argparse.Namespace, cfg: StrategyConfig) -> tuple[Bar, ...]:
 
     if getattr(args, "csv", None):
         return load_bars_from_csv(args.csv)
+    interval = getattr(args, "bar", "1d")
+    period = getattr(args, "period", "3y")
+    # 분봉은 yfinance 가 제공하는 기간이 짧다. 기본 3y 를 그대로 보내면 빈 응답이 온다.
+    if interval != "1d" and period in ("3y", "1y", "5y", "max"):
+        period = "730d" if interval in ("1h", "60m", "90m") else "60d"
+        logger.info("분봉(%s)은 기간을 %s 로 조정한다", interval, period)
     return load_bars(
         cfg.symbol,
-        period=getattr(args, "period", "3y"),
+        period=period,
+        interval=interval,
         cache_dir=None if getattr(args, "no_cache", False) else ".cache",
     )
 

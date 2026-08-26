@@ -21,6 +21,7 @@ from koru_trade.config import (
 from koru_trade.data.loader import (
     DataUnavailableError,
     bars_from_frame,
+    is_intraday,
     load_bars_from_csv,
     save_bars_to_csv,
 )
@@ -232,7 +233,10 @@ class TestShippedPresets:
     문서에만 있고 깨진 설정 파일은 사용자를 오도한다.
     """
 
-    @pytest.mark.parametrize("name", ["strategy.example.yaml", "daytrade.example.yaml"])
+    @pytest.mark.parametrize(
+        "name",
+        ["strategy.example.yaml", "daytrade.example.yaml", "intraday.example.yaml"],
+    )
     def test_예시_설정이_로딩된다(self, name: str) -> None:
         from pathlib import Path as _P
 
@@ -257,6 +261,27 @@ class TestShippedPresets:
         assert day.max_holding_days == 1
         assert day.max_atr_pct == pytest.approx(0.20)
 
+    def test_분봉_프리셋이_안전장치를_켜두었다(self) -> None:
+        """분봉 프리셋에서 이 둘이 꺼지면 단타가 아니게 된다.
+
+        - HOLD_USD 가 아니면 왕복비용이 4.5배(0.144% -> 0.642%)가 되어
+          어떤 설정도 손실이었다.
+        - 마감 청산이 없으면 밤새 들고 가게 되고, 그건 3배 레버리지로
+          오버나이트 갭을 정면으로 맞는 것이다.
+        """
+        from pathlib import Path as _P
+
+        from koru_trade.pnl import FxMode
+
+        cfg = load_strategy_config(
+            _P(__file__).resolve().parent.parent / "config" / "intraday.example.yaml"
+        )
+        assert cfg.cost.fx_mode is FxMode.HOLD_USD
+        assert cfg.close_minutes_before_session_end is not None
+        assert cfg.max_holding_bars is not None
+        # 분봉 ATR 은 0.7~2% 라 일봉 상한(8%)이면 필터가 아무것도 안 거른다
+        assert cfg.max_atr_pct <= 0.05
+
     def test_단타_프리셋의_익절_계단이_기본과_같다(self) -> None:
         """계단을 압축하면 기대값이 무너진다는 실측 근거를 코드로 고정한다."""
         from pathlib import Path as _P
@@ -265,3 +290,90 @@ class TestShippedPresets:
             _P(__file__).resolve().parent.parent / "config" / "daytrade.example.yaml"
         )
         assert day.take_profit == StrategyConfig().take_profit
+
+
+class TestIntradayLoading:
+    """분봉 적재. 이 검사가 없어서 338개 5분봉이 5개 일봉으로 뭉개졌었다."""
+
+    @staticmethod
+    def _intraday_frame(n: int = 78):
+        pd = pytest.importorskip("pandas")
+        idx = pd.date_range("2026-08-26 09:30", periods=n, freq="5min", tz="America/New_York")
+        return pd.DataFrame(
+            {
+                "Open": [20.0 + i * 0.01 for i in range(n)],
+                "High": [20.1 + i * 0.01 for i in range(n)],
+                "Low": [19.9 + i * 0.01 for i in range(n)],
+                "Close": [20.05 + i * 0.01 for i in range(n)],
+                "Volume": [10_000] * n,
+            },
+            index=idx,
+        )
+
+    def test_간격_판정(self) -> None:
+        for iv in ("1m", "5m", "15m", "30m", "1h", "90m"):
+            assert is_intraday(iv), iv
+        for iv in ("1d", "5d", "1wk", "1mo", "3mo"):
+            assert not is_intraday(iv), iv
+
+    def test_분봉이_뭉개지지_않는다(self) -> None:
+        """일봉 경로의 날짜 절삭을 분봉에 적용하면 하루에 한 봉만 남는다."""
+        pd = pytest.importorskip("pandas")
+        px = self._intraday_frame(78)
+        fx = pd.Series(
+            [1390.0] * 78,
+            index=pd.date_range("2026-08-26 09:30", periods=78, freq="5min", tz="America/New_York"),
+        )
+        bars = bars_from_frame(px, fx, intraday=True)
+        assert len(bars) == 78, f"분봉이 {len(bars)}개로 뭉개졌다"
+        assert len({b.ts for b in bars}) == 78
+
+    def test_일봉_경로는_여전히_날짜로_절삭한다(self) -> None:
+        pd = pytest.importorskip("pandas")
+        px = self._intraday_frame(78)
+        fx = pd.Series(
+            [1390.0] * 78,
+            index=pd.date_range("2026-08-26 09:30", periods=78, freq="5min", tz="America/New_York"),
+        )
+        bars = bars_from_frame(px, fx, intraday=False)
+        assert len(bars) == 1  # 하루치가 한 봉으로 접힌다
+        assert bars[0].ts.time() == dt.time(0, 0)
+
+    def test_타임스탬프가_동부시_벽시계다(self) -> None:
+        """장 마감 청산 같은 시간대 규칙이 성립하려면 ET 여야 한다.
+
+        tz 를 그냥 떼면 UTC 로 읽혀 09:30 이 13:30 이 된다.
+        """
+        pd = pytest.importorskip("pandas")
+        px = self._intraday_frame(3)
+        fx = pd.Series(
+            [1390.0] * 3,
+            index=pd.date_range("2026-08-26 09:30", periods=3, freq="5min", tz="America/New_York"),
+        )
+        bars = bars_from_frame(px, fx, intraday=True)
+        assert bars[0].ts.time() == dt.time(9, 30)
+        assert bars[0].ts.tzinfo is None
+
+    def test_다른_타임존_입력도_동부시로_맞춘다(self) -> None:
+        pd = pytest.importorskip("pandas")
+        px = self._intraday_frame(3)
+        px.index = px.index.tz_convert("UTC")
+        fx = pd.Series(
+            [1390.0] * 3,
+            index=pd.date_range("2026-08-26 09:30", periods=3, freq="5min", tz="Asia/Seoul"),
+        )
+        bars = bars_from_frame(px, fx, intraday=True)
+        assert bars[0].ts.time() == dt.time(9, 30)
+
+    def test_환율이_봉_시각에_맞춰_이월된다(self) -> None:
+        pd = pytest.importorskip("pandas")
+        px = self._intraday_frame(6)
+        # 환율은 15분 간격만 있다 -> 그 사이 봉은 직전 값을 쓴다
+        fx = pd.Series(
+            [1390.0, 1395.0],
+            index=pd.date_range("2026-08-26 09:30", periods=2, freq="15min", tz="America/New_York"),
+        )
+        bars = bars_from_frame(px, fx, intraday=True)
+        assert bars[0].fx_rate == pytest.approx(1390.0)
+        assert bars[1].fx_rate == pytest.approx(1390.0)  # 이월
+        assert bars[-1].fx_rate == pytest.approx(1395.0)

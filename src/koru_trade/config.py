@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import os
 from dataclasses import dataclass, field, fields
 from enum import Enum
@@ -238,10 +239,34 @@ class StrategyConfig:
     """
 
     max_holding_days: int = 5
-    """타임 스톱. 단타 전략이므로 이 기간을 넘기면 사유 불문 청산한다.
+    """타임 스톱(영업일). 단타 전략이므로 이 기간을 넘기면 사유 불문 청산한다.
 
     3배 레버리지의 변동성 감쇠는 보유 기간에 비례해 누적되므로
     "언젠가 오르겠지" 는 이 상품에서 특히 비싼 생각이다.
+
+    **분봉에서는 이 값이 사실상 작동하지 않는다.** 하루 안에 수십~수백 봉이
+    지나가도 영업일은 0이기 때문이다. 분봉에서는 :attr:`max_holding_bars` 를 쓴다.
+    """
+
+    max_holding_bars: int | None = None
+    """타임 스톱(봉 개수). 설정하면 :attr:`max_holding_days` 대신 이 값을 쓴다.
+
+    분봉/시간봉 전용이다. 예: 5분봉에서 12 = 1시간 보유 상한.
+    """
+
+    close_minutes_before_session_end: int | None = None
+    """정규장 마감 N분 전에 사유 불문 전량 청산한다. None 이면 미적용.
+
+    **오버나이트 갭을 피하는 진짜 단타 규칙이다.** KORU 는 한국 장중에 벌어진
+    사건이 미국 개장 갭으로 한꺼번에 반영되므로, 포지션을 밤새 들고 가는 것은
+    3배 레버리지로 갭을 정면으로 맞는 것과 같다.
+    """
+
+    session_end_et: str = "16:00"
+    """미국 정규장 마감 시각(동부시 벽시계, HH:MM).
+
+    :func:`~koru_trade.data.loader.bars_from_frame` 이 분봉 타임스탬프를
+    ET 벽시계로 맞춰 주는 것을 전제한다.
     """
 
     # --- 진입 필터 -----------------------------------------------------------
@@ -343,10 +368,31 @@ class StrategyConfig:
             raise ValueError("min_stop_pct 는 max_stop_pct 보다 작아야 한다")
         if self.max_holding_days < 1:
             raise ValueError("max_holding_days 는 1 이상이어야 한다")
+        if self.max_holding_bars is not None and self.max_holding_bars < 1:
+            raise ValueError(f"max_holding_bars 는 1 이상이어야 한다: {self.max_holding_bars}")
+        if (
+            self.close_minutes_before_session_end is not None
+            and not 0 <= self.close_minutes_before_session_end < 390
+        ):
+            raise ValueError("close_minutes_before_session_end 는 0~389 분이어야 한다")
+        try:
+            hh, _, mm = self.session_end_et.partition(":")
+            if not (0 <= int(hh) <= 23 and 0 <= int(mm) <= 59):
+                raise ValueError
+        except ValueError as exc:
+            raise ValueError(
+                f"session_end_et 는 HH:MM 형식이어야 한다: {self.session_end_et!r}"
+            ) from exc
         if self.min_rsi >= self.max_rsi:
             raise ValueError("min_rsi 는 max_rsi 보다 작아야 한다")
         if self.ema_fast >= self.ema_slow:
             raise ValueError("ema_fast 는 ema_slow 보다 작아야 한다")
+
+    @property
+    def session_end_time(self) -> dt.time:
+        """마감 시각을 :class:`datetime.time` 으로."""
+        hh, _, mm = self.session_end_et.partition(":")
+        return dt.time(int(hh), int(mm or 0))
 
     @property
     def total_tranches(self) -> int:
@@ -386,6 +432,9 @@ class StrategyConfig:
             "trailing_after_tp": self.trailing_after_tp,
             "trailing_giveback": self.trailing_giveback,
             "max_holding_days": self.max_holding_days,
+            "max_holding_bars": self.max_holding_bars,
+            "close_minutes_before_session_end": self.close_minutes_before_session_end,
+            "session_end_et": self.session_end_et,
             "atr_period": self.atr_period,
             "rsi_period": self.rsi_period,
             "ema_fast": self.ema_fast,
