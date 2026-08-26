@@ -32,6 +32,7 @@ __all__ = [
     "TakeProfitStep",
     "is_dry_run",
     "load_credentials",
+    "load_dotenv_if_present",
     "load_strategy_config",
     "mask_secret",
     "strategy_config_from_dict",
@@ -535,7 +536,7 @@ def load_credentials(env: dict[str, str] | None = None) -> Credentials:
         ValueError: 필수 항목이 없을 때. 메시지에 값은 절대 포함하지 않는다.
     """
     if env is None:
-        _load_dotenv_if_present()
+        load_dotenv_if_present()
         env = dict(os.environ)
 
     raw_env = env.get("KIS_ENV", "paper").strip().lower()
@@ -560,14 +561,18 @@ def is_dry_run(env: dict[str, str] | None = None) -> bool:
     실거래를 켜려면 명시적으로 ``KORU_DRY_RUN=false`` 를 설정해야 한다.
     """
     if env is None:
-        _load_dotenv_if_present()
+        load_dotenv_if_present()
         env = dict(os.environ)
     raw = env.get("KORU_DRY_RUN", "true").strip().lower()
     return raw not in ("false", "0", "no", "off")
 
 
-def _load_dotenv_if_present() -> None:
-    """``.env`` 가 있으면 로드한다. 없어도 조용히 넘어간다."""
+def load_dotenv_if_present() -> None:
+    """``.env`` 가 있으면 프로세스 환경에 주입한다. 없어도 조용히 넘어간다.
+
+    **환경변수를 읽는 모든 진입점이 이 함수를 먼저 불러야 한다.**
+    하나라도 빠뜨리면 그 설정만 조용히 무시된다.
+    """
     try:
         from dotenv import load_dotenv
     except ImportError:  # pragma: no cover - 선택적 의존성

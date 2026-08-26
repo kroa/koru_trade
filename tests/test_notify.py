@@ -76,6 +76,24 @@ class TestConfig:
         got = load_telegram_config({"TELEGRAM_BOT_TOKEN": "garbage", "TELEGRAM_CHAT_ID": CHAT})
         assert got is None
 
+    def test_env_파일에서_읽는다(self, tmp_path, monkeypatch) -> None:
+        """`.env` 를 채웠는데도 알림이 조용히 꺼져 있던 버그의 회귀 방지.
+
+        load_credentials() 는 .env 를 로드하는데 load_telegram_config() 만
+        빠뜨려서, 사용자가 값을 제대로 넣어도 os.environ 에는 없어 None 이 났다.
+        환경변수를 읽는 진입점은 전부 .env 를 먼저 주입해야 한다.
+        """
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+        (tmp_path / ".env").write_text(
+            "\n".join([f"TELEGRAM_BOT_TOKEN={TOKEN}", f"TELEGRAM_CHAT_ID={CHAT}", ""]),
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+        got = load_telegram_config()
+        assert got is not None, ".env 를 채웠는데 알림 설정을 못 찾았다"
+        assert got.chat_id == CHAT
+
     def test_정상_환경변수를_읽는다(self) -> None:
         got = load_telegram_config({"TELEGRAM_BOT_TOKEN": TOKEN, "TELEGRAM_CHAT_ID": CHAT})
         assert got is not None

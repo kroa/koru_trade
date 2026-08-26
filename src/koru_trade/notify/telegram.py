@@ -26,7 +26,7 @@ from dataclasses import dataclass
 import requests
 
 from koru_trade.broker.ratelimit import RateLimiter
-from koru_trade.config import mask_secret
+from koru_trade.config import load_dotenv_if_present, mask_secret
 from koru_trade.notify.base import NotifyResult
 
 logger = logging.getLogger(__name__)
@@ -77,6 +77,9 @@ def load_telegram_config(env: dict[str, str] | None = None) -> TelegramConfig | 
         알림이 없다고 매매를 막지는 않는다.
     """
     if env is None:
+        # .env 를 먼저 주입한다. 이걸 빠뜨리면 사용자가 .env 를 제대로 채워도
+        # 알림이 조용히 꺼진 채로 돈다.
+        load_dotenv_if_present()
         env = dict(os.environ)
     token = env.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat = env.get("TELEGRAM_CHAT_ID", "").strip()
