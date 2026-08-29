@@ -418,3 +418,67 @@ class TestActiveConfigResolution:
 
         monkeypatch.chdir(tmp_path)
         assert _resolve_config(None) == StrategyConfig()
+
+
+class TestStaleTailWarning:
+    """가장 최근 봉이 버려지면 반드시 알려야 한다.
+
+    실거래 판단은 마지막 봉으로 한다. 그 봉이 결측으로 조용히 사라지면
+    봇은 옛 데이터로 판단하면서 스스로 최신이라고 믿는다.
+    실제로 yfinance 가 당일 일봉을 close=NaN 으로 준 적이 있고,
+    그 결과 이틀 지난 봉으로 매매 판단을 하고 있었다.
+    """
+
+    @staticmethod
+    def _frame_with_bad_tail():
+        pd = pytest.importorskip("pandas")
+        import numpy as np
+
+        idx = pd.date_range("2026-08-24", periods=5, freq="D")
+        df = pd.DataFrame(
+            {
+                "Open": [20.0] * 5,
+                "High": [21.0] * 5,
+                "Low": [19.0] * 5,
+                "Close": [20.5, 20.6, 20.7, 20.8, np.nan],  # 마지막 봉이 깨졌다
+                "Volume": [1_000_000] * 5,
+            },
+            index=idx,
+        )
+        fx = pd.Series([1390.0] * 5, index=idx)
+        return df, fx
+
+    def test_마지막_봉이_버려지면_경고한다(self, caplog) -> None:
+        import logging
+
+        px, fx = self._frame_with_bad_tail()
+        with caplog.at_level(logging.WARNING):
+            bars = bars_from_frame(px, fx)
+        assert len(bars) == 4
+        assert bars[-1].ts.date() == dt.date(2026, 8, 27)
+        assert "가장 최근 봉" in caplog.text
+        assert "2026-08-28" in caplog.text
+
+    def test_중간_봉만_버려지면_그_경고는_없다(self, caplog) -> None:
+        """중간 결측은 흔하고 판단에 직접 영향이 없다. 경고를 남발하지 않는다."""
+        import logging
+
+        import numpy as np
+
+        px, fx = self._frame_with_bad_tail()
+        px.iloc[4, px.columns.get_loc("Close")] = 20.9  # 꼬리 복구
+        px.iloc[1, px.columns.get_loc("Close")] = np.nan  # 중간을 깨뜨림
+        with caplog.at_level(logging.WARNING):
+            bars = bars_from_frame(px, fx)
+        assert len(bars) == 4
+        assert "가장 최근 봉" not in caplog.text
+
+    def test_결측이_없으면_경고하지_않는다(self, caplog) -> None:
+        import logging
+
+        px, fx = self._frame_with_bad_tail()
+        px.iloc[4, px.columns.get_loc("Close")] = 20.9
+        with caplog.at_level(logging.WARNING):
+            bars = bars_from_frame(px, fx)
+        assert len(bars) == 5
+        assert "가장 최근 봉" not in caplog.text

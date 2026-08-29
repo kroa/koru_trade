@@ -57,6 +57,8 @@ class RunnerResult:
     order_result: OrderResult | None
     position_after: Position
     krw_return: float
+    bar_ts: dt.datetime | None = None
+    """판단에 쓴 봉의 시각. 데이터가 낡았는지 눈으로 확인하기 위한 값."""
 
     @property
     def acted(self) -> bool:
@@ -66,7 +68,10 @@ class RunnerResult:
         )
 
     def summary(self) -> str:
-        parts = [f"{self.decision.action.value}"]
+        parts = []
+        if self.bar_ts is not None:
+            parts.append(f"봉 {self.bar_ts:%m-%d %H:%M}")
+        parts.append(f"{self.decision.action.value}")
         if self.decision.qty:
             parts.append(f"{self.decision.qty}주")
         if self.order_result is not None:
@@ -161,12 +166,12 @@ class LiveRunner:
 
         if not decision.is_actionable:
             self._store.save_risk(risk)
-            return RunnerResult(decision, None, None, position, krw_r)
+            return RunnerResult(decision, None, None, position, krw_r, bar_ts=last.ts)
 
         order = self._build_order(decision, last, ts)
         if self._store.has_order(order.client_order_id):
             logger.warning("멱등키 %s 는 이미 처리한 주문이다. 건너뛴다", order.client_order_id)
-            return RunnerResult(decision, order, None, position, krw_r)
+            return RunnerResult(decision, order, None, position, krw_r, bar_ts=last.ts)
 
         result = self._broker.submit(order)
         self._store.record_order(
@@ -209,7 +214,7 @@ class LiveRunner:
             if position.is_open
             else 0.0
         )
-        return RunnerResult(decision, order, result, position, krw_r)
+        return RunnerResult(decision, order, result, position, krw_r, bar_ts=last.ts)
 
     # -- 내부 ---------------------------------------------------------------
 

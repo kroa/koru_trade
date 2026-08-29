@@ -172,6 +172,18 @@ def bars_from_frame(price_frame: Any, fx_series: Any, *, intraday: bool = False)
         logger.warning("환율 또는 시세 결측으로 %d개 봉을 건너뛰었다", skipped)
     if not bars:
         raise DataUnavailableError("환율과 정렬된 유효한 봉이 하나도 없다")
+
+    # 버려진 봉이 **맨 뒤**에 있으면 조용히 넘어가면 안 된다.
+    # 실거래 판단은 마지막 봉으로 하므로, 그 봉이 없어지면 봇은 옛 데이터로
+    # 판단하면서 스스로 최신이라고 믿는다. 실제로 yfinance 가 당일 일봉을
+    # close=NaN 으로 주는 일이 있었고, 그 결과 이틀 지난 봉으로 매매 판단을 했다.
+    if len(px.index) and bars[-1].ts < _to_datetime(px.index[-1]):
+        logger.warning(
+            "가장 최근 봉(%s)이 결측으로 버려졌다. 판단은 %s 봉 기준이다 — "
+            "시세 제공자가 아직 확정하지 않았을 수 있다",
+            _to_datetime(px.index[-1]).isoformat(sep=" "),
+            bars[-1].ts.isoformat(sep=" "),
+        )
     return tuple(bars)
 
 
