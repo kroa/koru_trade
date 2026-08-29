@@ -1,0 +1,120 @@
+# ============================================================================
+# KORU 신호 빈도 확대 프리셋  ★ 현재 검증된 것 중 가장 나은 설정
+# ============================================================================
+# 사용법:
+#   cp config/frequent.example.yaml config/strategy.yaml
+#   python -m koru_trade backtest --trades
+#
+# daytrade.example.yaml 에서 진입 필터 4개를 완화했다. 그 외는 동일하다.
+#   max_gap_pct     0.05 -> 0.10   (KORU 는 요즘 갭이 커서 정상 상황도 걸러냈다)
+#   min_rsi/max_rsi 45~70 -> 35~80
+#   min_adx         18 -> 0        (해제)
+#   max_fx_decline  -3% -> 해제
+#
+# ----------------------------------------------------------------------------
+# 왜 이게 더 나은가 — 3년 실측 (2023-08 ~ 2026-08, 원화 기준, 전 비용 반영)
+# ----------------------------------------------------------------------------
+#   설정                      매매   주당   승률    누적     PF    MDD
+#   기본 (strategy.example)    20건  0.13  55%   +4.67%  1.39  -4.4%
+#   일일 단타 (daytrade)       37건  0.24  59%  +11.52%  1.77  -4.9%
+#   이 프리셋 (frequent)       77건  0.49  57%  +23.27%  1.87  -5.6%
+#   필터 전부 해제            122건  0.78  52%   +9.11%  1.16 -12.0%
+#
+# 필터를 풀수록 좋아지다가 어느 지점에서 무너진다. 이 프리셋이 그 정점이다.
+# 전부 해제하면 매매는 60% 늘지만 수익이 1/3 로 줄고 낙폭이 두 배가 된다.
+#
+# ----------------------------------------------------------------------------
+# 이 설정이 특별한 이유 — 통계적으로 유의한 첫 설정이다
+# ----------------------------------------------------------------------------
+#   부트스트랩 95% 신뢰구간  +0.14% ~ +3.12%   ← 0을 포함하지 않는다
+#   양수확률 98% · 파산위험 0.3%
+#   워크포워드 4구간 중 3구간 수익
+#     2023-10~2024-07  +3.73% (17건, PF 2.57)
+#     2024-07~2025-03  -4.09% ( 7건, PF 0.10)
+#     2025-03~2025-12  +5.11% (32건, PF 1.48)
+#     2025-12~2026-08 +18.34% (20건, PF 3.18)
+#
+# 지금까지 만든 프리셋 중 신뢰구간이 0을 넘지 않는 것은 이것뿐이다.
+# 다른 설정들은 "과거에 이랬다" 였지만 이건 "우연으로 보기 어렵다" 에 가깝다.
+#
+# ----------------------------------------------------------------------------
+# 빈도에 대한 솔직한 이야기
+# ----------------------------------------------------------------------------
+# 주 0.49회 = 약 2주에 1번이다. "주 3~4회" 를 원한다면 이 설정으로도 부족하다.
+#
+# 구조적 상한이 주 2.9회다(평균 보유 1.7일 / 주 5거래일, 동시 보유 1개).
+# 그리고 필터를 전부 풀어도 실측은 주 0.78회에 그친다 — 전략이 진입하고 싶어하는
+# 날 자체가 전체 봉의 26% 뿐이고, 그중 상당수는 이미 포지션 보유 중이라 못 산다.
+#
+# 억지로 주 3~4회를 만들려면 필터를 사실상 다 꺼야 하는데, 그 지점의 실측이
+# PF 1.16 / MDD -12% 다. 빈도를 사면 수익을 판다.
+#
+# 분봉으로 빈도를 올리는 길도 측정했다(config/intraday.example.yaml 주석 참조).
+# 5분봉 ATR 0.70% 가 왕복 비용 0.64% 와 거의 같아서 구조적으로 남지 않는다.
+#
+# 반드시 모의투자(KIS_ENV=paper)로 검증한 뒤 실거래로 넘어가라.
+# ============================================================================
+
+symbol: KORU
+exchange: AMS
+capital_krw: 3000000.0
+scale_in:
+- atr_multiple: 0.0
+  weight: 0.4
+- atr_multiple: 0.7
+  weight: 0.35
+- atr_multiple: 1.4
+  weight: 0.25
+scale_in_requires_reclaim: true
+take_profit:
+- krw_return: 0.05
+  sell_fraction: 0.3
+- krw_return: 0.09
+  sell_fraction: 0.3
+- krw_return: 0.14
+  sell_fraction: 0.25
+- krw_return: 0.2
+  sell_fraction: 0.15
+breakeven_stop_after_tp: 1
+stop_atr_multiple: 2.0
+max_stop_pct: 0.12
+min_stop_pct: 0.04
+hard_stop_krw_return: -0.1
+trailing_after_tp: 2
+trailing_giveback: 0.35
+max_holding_days: 1
+max_holding_bars: null
+close_minutes_before_session_end: null
+session_end_et: '16:00'
+atr_period: 14
+rsi_period: 14
+ema_fast: 10
+ema_slow: 30
+max_atr_pct: 0.2
+min_rsi: 35.0
+max_rsi: 80.0
+min_adx: 0.0
+max_gap_pct: 0.1
+min_avg_dollar_volume: 3000000.0
+fx_lookback_days: 20
+max_fx_decline: -0.99
+fx_max_level: null
+limit_slippage_bps: 15.0
+use_market_order_on_stop: true
+cost:
+  buy_fee_rate: 0.0007
+  sell_fee_rate: 0.0007
+  sec_fee_rate: 2.78e-05
+  finra_taf_per_share: 0.000166
+  fx_spread_buy: 0.0025
+  fx_spread_sell: 0.0025
+  slippage_rate: 0.0015
+  fx_mode: CONVERT
+risk:
+  max_position_krw: 5000000.0
+  max_daily_notional_krw: 3000000.0
+  daily_loss_limit_krw: 300000.0
+  max_consecutive_losses: 3
+  loss_cooldown_days: 5
+  max_trades_per_day: 5
+  max_open_positions: 1

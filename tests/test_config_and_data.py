@@ -235,7 +235,12 @@ class TestShippedPresets:
 
     @pytest.mark.parametrize(
         "name",
-        ["strategy.example.yaml", "daytrade.example.yaml", "intraday.example.yaml"],
+        [
+            "strategy.example.yaml",
+            "daytrade.example.yaml",
+            "intraday.example.yaml",
+            "frequent.example.yaml",
+        ],
     )
     def test_예시_설정이_로딩된다(self, name: str) -> None:
         from pathlib import Path as _P
@@ -260,6 +265,40 @@ class TestShippedPresets:
         assert diff == {"max_holding_days", "max_atr_pct"}, f"예상 밖의 차이: {diff}"
         assert day.max_holding_days == 1
         assert day.max_atr_pct == pytest.approx(0.20)
+
+    def test_빈도확대_프리셋이_일일단타에서_필터만_완화했다(self) -> None:
+        """문서가 "진입 필터 4개만 완화했다" 고 주장한다. 실제로 그런지 확인한다.
+
+        익절 계단·손절·보유기간을 함께 건드렸다면 무엇이 개선을 만들었는지
+        알 수 없게 된다.
+        """
+        from dataclasses import fields
+        from pathlib import Path as _P
+
+        root = _P(__file__).resolve().parent.parent / "config"
+        day = load_strategy_config(root / "daytrade.example.yaml")
+        freq = load_strategy_config(root / "frequent.example.yaml")
+
+        diff = {
+            f.name for f in fields(StrategyConfig) if getattr(day, f.name) != getattr(freq, f.name)
+        }
+        assert diff == {
+            "max_gap_pct",
+            "min_rsi",
+            "max_rsi",
+            "min_adx",
+            "max_fx_decline",
+            "risk",
+        }, f"예상 밖의 차이: {diff}"
+
+        # 수익 구조를 만드는 부분은 건드리지 않았다
+        assert freq.take_profit == day.take_profit
+        assert freq.scale_in == day.scale_in
+        assert freq.max_holding_days == day.max_holding_days
+        assert freq.hard_stop_krw_return == day.hard_stop_krw_return
+        # risk 차이는 일일 진입 한도뿐이어야 한다
+        assert freq.risk.max_trades_per_day == 5
+        assert freq.risk.daily_loss_limit_krw == day.risk.daily_loss_limit_krw
 
     def test_분봉_프리셋이_안전장치를_켜두었다(self) -> None:
         """분봉 프리셋에서 이 둘이 꺼지면 단타가 아니게 된다.
