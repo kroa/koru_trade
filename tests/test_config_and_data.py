@@ -288,17 +288,31 @@ class TestShippedPresets:
             "max_rsi",
             "min_adx",
             "max_fx_decline",
+            "take_profit",
             "risk",
         }, f"예상 밖의 차이: {diff}"
 
-        # 수익 구조를 만드는 부분은 건드리지 않았다
-        assert freq.take_profit == day.take_profit
+        # 익절은 더 잘게 쪼갰지만(4단 -> 6단) 분할 매수와 청산 규칙은 그대로다
+        assert len(freq.take_profit) == 6
         assert freq.scale_in == day.scale_in
         assert freq.max_holding_days == day.max_holding_days
         assert freq.hard_stop_krw_return == day.hard_stop_krw_return
         # risk 차이는 일일 진입 한도뿐이어야 한다
         assert freq.risk.max_trades_per_day == 5
         assert freq.risk.daily_loss_limit_krw == day.risk.daily_loss_limit_krw
+
+    def test_빈도확대_프리셋의_익절이_사용자_요구범위_안이다(self) -> None:
+        """단계를 늘려도 원화 5~20% 라는 원래 요구를 벗어나면 안 된다."""
+        from pathlib import Path as _P
+
+        freq = load_strategy_config(
+            _P(__file__).resolve().parent.parent / "config" / "frequent.example.yaml"
+        )
+        rates = [s.krw_return for s in freq.take_profit]
+        assert min(rates) == pytest.approx(0.05)
+        assert max(rates) == pytest.approx(0.20)
+        assert rates == sorted(rates)
+        assert sum(s.sell_fraction for s in freq.take_profit) == pytest.approx(1.0)
 
     def test_분봉_프리셋이_안전장치를_켜두었다(self) -> None:
         """분봉 프리셋에서 이 둘이 꺼지면 단타가 아니게 된다.
