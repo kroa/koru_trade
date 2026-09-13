@@ -12,10 +12,19 @@
 from __future__ import annotations
 
 import datetime as dt
+import html
 from typing import Any
 
 from koru_trade.config import StrategyConfig
-from koru_trade.models import Action, Bar, Decision, ExitReason, Position
+from koru_trade.models import (
+    Action,
+    Bar,
+    Decision,
+    ExitReason,
+    Order,
+    OrderSide,
+    Position,
+)
 from koru_trade.pnl import krw_cost, krw_proceeds, position_krw_return, position_required_price_usd
 from koru_trade.strategy import stop_price_usd
 
@@ -24,6 +33,8 @@ __all__ = [
     "format_daily_summary",
     "format_decision",
     "format_error",
+    "format_mismatch",
+    "format_rejected",
 ]
 
 _ACTION_HEAD = {
@@ -224,6 +235,51 @@ def format_daily_summary(
     if stats.get("in_cooldown"):
         lines.append(f"쿨다운   {stats.get('cooldown_until')} 까지")
     return "\n".join(lines)
+
+
+def format_rejected(
+    decision: Decision,
+    order: Order,
+    reason: str,
+    cfg: StrategyConfig,
+    *,
+    now: dt.datetime | None = None,
+) -> str:
+    """주문이 거절됐을 때.
+
+    거절을 로그에만 남기면 봇은 겉으로 멀쩡히 돌면서 아무 매매도 못 한다.
+    2026-09-09 ~ 09-11 에 매도가 사흘 연속 거절됐는데 알림이 없어 아무도 몰랐다.
+    """
+    ts = (now or dt.datetime.now()).strftime("%m/%d %H:%M")
+    side = "매수" if order.side is OrderSide.BUY else "매도"
+    head = _ACTION_HEAD.get(decision.action, ("", decision.action.value))[1]
+    lines = [
+        f"❗ <b>주문 거절</b> · {cfg.symbol}",
+        f"<code>{ts}</code>",
+        "",
+        f"판단   {head}",
+        f"주문   {side} {order.qty:,}주",
+        f"사유   {html.escape(_clip(reason, 300), quote=False)}",
+        "",
+        "<i>체결되지 않았다. 포지션 기록과 실제 잔고가 어긋났을 수 있다.</i>",
+        "<i>python -m koru_trade status 로 확인하라.</i>",
+    ]
+    return "\n".join(lines)
+
+
+def format_mismatch(detail: str, cfg: StrategyConfig, *, now: dt.datetime | None = None) -> str:
+    """감시를 시작할 때 포지션 기록과 브로커 잔고가 어긋나 있을 때."""
+    ts = (now or dt.datetime.now()).strftime("%m/%d %H:%M")
+    return "\n".join(
+        [
+            f"⚠️ <b>잔고 불일치</b> · {cfg.symbol}",
+            f"<code>{ts}</code>",
+            "",
+            html.escape(_clip(detail, 400), quote=False),
+            "",
+            "<i>자동으로 고치지 않았다. 부분 체결·수동 매매·미체결 중 무엇인지 확인하라.</i>",
+        ]
+    )
 
 
 def _clip(text: str, limit: int) -> str:

@@ -235,7 +235,10 @@ class DashboardServer:
         store: 실거래 상태 저장소(선택).
         host: 바인딩 호스트. 루프백이 아니면 거부한다.
         port: 포트. 사용 중이면 다음 빈 포트로 넘어간다.
-        ttl: 스냅샷 캐시 수명(초).
+        ttl: 스냅샷 캐시 수명(초). 이 시간이 지나면 다시 만든다.
+        bars_provider: 스냅샷을 다시 만들 때 호출해 **새 시세**를 받아오는 함수.
+            주지 않으면 ``bars`` 를 계속 쓴다 — 그러면 서버를 켠 시점의 가격이
+            화면에 그대로 남아, 하루만 지나도 옛 데이터를 최신인 것처럼 보여준다.
     """
 
     def __init__(
@@ -247,6 +250,7 @@ class DashboardServer:
         host: str = DEFAULT_HOST,
         port: int = DEFAULT_PORT,
         ttl: float = DEFAULT_TTL,
+        bars_provider: Callable[[], Sequence[Bar]] | None = None,
     ) -> None:
         if not is_loopback(host):
             raise ValueError(
@@ -254,6 +258,7 @@ class DashboardServer:
                 "포지션과 손익은 개인 금융정보이므로 외부에 노출하면 안 된다"
             )
         self._bars = tuple(bars)
+        self._bars_provider = bars_provider
         self._cfg = cfg
         self._store = store
         self.host = host
@@ -266,6 +271,16 @@ class DashboardServer:
         self._thread: threading.Thread | None = None
 
     def _build(self) -> str:
+        # 시세를 다시 받아온다. 실패하면 직전 봉으로 그린다 — 네트워크가 끊겼다고
+        # 대시보드까지 죽으면 안 되고, 화면이 비는 것보다 옛 데이터가 낫다.
+        if self._bars_provider is not None:
+            try:
+                fresh = tuple(self._bars_provider())
+            except Exception as exc:
+                logger.warning("시세 갱신 실패(%s). 직전 봉으로 그린다", type(exc).__name__)
+            else:
+                if fresh:
+                    self._bars = fresh
         return snapshot_to_json(build_snapshot(self._bars, self._cfg, store=self._store))
 
     @property

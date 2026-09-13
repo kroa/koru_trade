@@ -38,7 +38,7 @@ from koru_trade.models import (
     Position,
 )
 from koru_trade.notify.base import NotifyResult, NullNotifier, SignalNotifier
-from koru_trade.notify.format import format_blocked, format_decision
+from koru_trade.notify.format import format_blocked, format_decision, format_rejected
 from koru_trade.pnl import krw_cost, krw_proceeds, position_krw_return
 from koru_trade.risk import RiskState
 from koru_trade.strategy import decide
@@ -207,6 +207,14 @@ class LiveRunner:
             self._store.save_position(position)
         else:
             logger.error("주문이 체결되지 않았다: %s", result.message)
+            # 거절을 로그에만 남기면 봇이 조용히 멈춘다. 실제로 매도가 사흘간
+            # 349번 거절됐는데 알림이 없어서 아무도 몰랐다. 같은 멱등키의 주문은
+            # 다시 제출되지 않으므로 거절 알림도 주문 하나당 한 번만 나간다.
+            if result.status is OrderStatus.REJECTED:
+                self._notify(
+                    format_rejected(decision, order, result.message, cfg, now=ts),
+                    key=f"rejected-{order.client_order_id}",
+                )
 
         self._store.save_risk(risk)
         krw_r = (

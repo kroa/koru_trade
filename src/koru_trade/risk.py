@@ -15,6 +15,7 @@ import datetime as dt
 from dataclasses import dataclass, field, replace
 
 from koru_trade.config import RiskConfig
+from koru_trade.market_calendar import is_trading_day
 
 __all__ = [
     "RiskState",
@@ -144,10 +145,13 @@ class RiskState:
 
 
 def add_business_days(start: dt.date, days: int) -> dt.date:
-    """``start`` 에서 영업일 ``days`` 만큼 뒤의 날짜(주말 제외, 공휴일 무시).
+    """``start`` 에서 거래일 ``days`` 만큼 뒤의 날짜(주말·미국 공휴일 제외).
 
     쿨다운을 달력일로 세면 금요일에 걸린 것과 화요일에 걸린 것이
     실제로 쉬는 거래일 수가 달라진다.
+
+    공휴일을 세지 않으면 쿨다운이 의도보다 일찍 풀린다. 추수감사절 주간처럼
+    휴장과 조기폐장이 겹치는 구간에서 특히 그렇다.
     """
     if days <= 0:
         return start
@@ -155,7 +159,7 @@ def add_business_days(start: dt.date, days: int) -> dt.date:
     remaining = days
     while remaining > 0:
         cursor += dt.timedelta(days=1)
-        if cursor.weekday() < 5:
+        if is_trading_day(cursor):
             remaining -= 1
     return cursor
 

@@ -28,6 +28,7 @@ from dataclasses import dataclass
 
 from koru_trade import indicators as ind
 from koru_trade.config import StrategyConfig
+from koru_trade.market_calendar import trading_days_between
 from koru_trade.models import (
     Action,
     Bar,
@@ -166,24 +167,18 @@ def _bars_since(bars: Sequence[Bar], opened: dt.datetime) -> int:
 
 
 def business_days_between(start: dt.datetime, end: dt.datetime) -> int:
-    """두 시점 사이의 영업일 수(주말 제외, 미국 공휴일은 무시).
+    """두 시점 사이의 거래일 수(주말·미국 공휴일 제외).
 
-    타임 스톱을 달력일이 아니라 영업일로 세기 위한 근사다.
-    공휴일을 무시하므로 실제보다 살짝 길게 세는데, 이는 보수적인 방향은 아니지만
-    주말을 세는 것보다 훨씬 정확하다.
+    타임 스톱을 달력일이 아니라 거래일로 센다.
+
+    공휴일을 무시하면 휴장이 낀 구간에서 실제보다 많이 세고, 그러면
+    청산해야 할 날보다 하루 일찍 청산 판정이 난다. 반대로 봉이 없는 날은
+    판단 자체가 돌지 않아 하루를 더 들고 가는 쪽으로도 어긋난다.
+    3배 레버리지에서 하룻밤은 ATR 10% 국면 기준으로 작은 차이가 아니다.
     """
     if end <= start:
         return 0
-    d0, d1 = start.date(), end.date()
-    days = (d1 - d0).days
-    full_weeks, remainder = divmod(days, 7)
-    count = full_weeks * 5
-    cursor = d0
-    for _ in range(remainder):
-        cursor += dt.timedelta(days=1)
-        if cursor.weekday() < 5:
-            count += 1
-    return count
+    return trading_days_between(start.date(), end.date())
 
 
 # ---------------------------------------------------------------------------

@@ -30,6 +30,7 @@ from koru_trade.version import __version__
 
 if TYPE_CHECKING:
     from koru_trade.broker.base import Broker
+    from koru_trade.live.state import StateStore
     from koru_trade.notify.base import SignalNotifier
 
 logger = logging.getLogger("koru_trade")
@@ -170,6 +171,12 @@ def _build_parser() -> argparse.ArgumentParser:
     wb.add_argument("--port", type=int, default=8642, help="포트 (사용 중이면 다음 빈 포트)")
     wb.add_argument("--state", default="state/koru_state.db", help="상태 DB 경로")
     wb.add_argument("--open", action="store_true", help="브라우저를 자동으로 연다")
+    wb.add_argument(
+        "--refresh",
+        type=float,
+        default=900.0,
+        help="시세를 다시 받는 주기(초). 기본 900=15분. 0 이면 켤 때 받은 시세를 계속 쓴다",
+    )
 
     wt = sub.add_parser("watch", help="주기적으로 감시하며 신호를 알림")
     add_data_args(wt)
@@ -353,6 +360,7 @@ def _cmd_tick(args: argparse.Namespace, cfg: StrategyConfig) -> int:
         print(f"KIS 브로커 ({cred.env.value}) / DRY_RUN={dry}")
 
     store = StateStore(args.state)
+    _restore_paper_position(broker, store, cfg)
     notifier = _build_notifier()
     if notifier.enabled:
         print("텔레그램 알림이 연결되어 있다")
@@ -370,6 +378,36 @@ def _cmd_tick(args: argparse.Namespace, cfg: StrategyConfig) -> int:
     return 0
 
 
+def _market_status_line() -> str:
+    """미국장 개폐 상태 한 줄. 휴장일과 조기폐장을 반영한다.
+
+    이게 없으면 사람에게 "월요일이면 신호가 온다" 같은 안내를 하게 되는데,
+    그 월요일이 노동절이면 틀린 안내다. 실제로 그런 일이 있었다.
+    """
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+
+    from koru_trade.market_calendar import is_early_close, is_trading_day, next_trading_day
+
+    ny_tz = ZoneInfo("America/New_York")
+    kr_tz = ZoneInfo("Asia/Seoul")
+    now_ny = dt.datetime.now(ny_tz)
+    close_h = 13 if is_early_close(now_ny.date()) else 16
+
+    if is_trading_day(now_ny.date()) and dt.time(9, 30) <= now_ny.time() < dt.time(close_h, 0):
+        closes = dt.datetime.combine(now_ny.date(), dt.time(close_h, 0), ny_tz)
+        left = closes - now_ny
+        hh, mm = divmod(int(left.total_seconds()) // 60, 60)
+        early = " (조기폐장)" if close_h == 13 else ""
+        kr = closes.astimezone(kr_tz)
+        return f"미국장 개장 중{early} · 마감까지 {hh}시간 {mm}분 (한국 {kr:%H:%M})"
+
+    nxt = next_trading_day(now_ny.date(), inclusive=now_ny.time() < dt.time(9, 30))
+    opens = dt.datetime.combine(nxt, dt.time(9, 30), ny_tz).astimezone(kr_tz)
+    why = "" if is_trading_day(now_ny.date()) else " (휴장일)"
+    return f"미국장 마감{why} · 다음 개장 한국 {opens:%m/%d(%a) %H:%M}"
+
+
 def _cmd_status(args: argparse.Namespace, cfg: StrategyConfig) -> int:
     import datetime as dt
 
@@ -382,6 +420,8 @@ def _cmd_status(args: argparse.Namespace, cfg: StrategyConfig) -> int:
     print("=" * 74)
     print("  현재 상태")
     print("=" * 74)
+    print(f"  {_market_status_line()}")
+    print()
     if pos.is_open:
         print(f"  보유 수량        {pos.qty}주 ({pos.tranche_count}차 분할)")
         print(f"  USD 평단         ${pos.avg_price_usd:.2f}")
@@ -426,7 +466,13 @@ def _cmd_doctor(args: argparse.Namespace, cfg: StrategyConfig) -> int:  # noqa: 
     print(
         f"  분할 익절(원화)   {[f'+{s.krw_return:.0%}->{s.sell_fraction:.0%}' for s in cfg.take_profit]}"
     )
-    print(f"  왕복 거래비용     {cfg.cost.round_trip_drag:.3%}")
+    # round_trip_drag 는 수수료+환전만이다. 슬리피지는 체결가에 붙으므로
+    # 여기서 더해 주지 않으면 실제보다 싸 보인다. AGENTS.md 도메인 함정 참고.
+    slip = 2.0 * cfg.cost.slippage_rate
+    print(
+        f"  왕복 거래비용     {cfg.cost.round_trip_drag + slip:.3%}"
+        f"  (수수료·환전 {cfg.cost.round_trip_drag:.3%} + 슬리피지 {slip:.3%})"
+    )
     print(f"  환전 방식         {cfg.cost.fx_mode.value}")
     print(f"  원화 하드스톱     {cfg.hard_stop_krw_return:+.0%}")
     print(f"  최대 보유         {cfg.max_holding_days}영업일")
@@ -514,12 +560,19 @@ def _cmd_watch(args: argparse.Namespace, cfg: StrategyConfig) -> int:
     from pathlib import Path as _P
 
     from koru_trade.live import LiveRunner, StateStore
-    from koru_trade.notify.format import format_error
+    from koru_trade.notify.format import format_error, format_mismatch
 
     notifier = _build_notifier()
     store = StateStore(args.state)
     broker = _make_broker(args, cfg)
+    _restore_paper_position(broker, store, cfg)
     runner = LiveRunner(broker, store, cfg, notifier=notifier)
+    # 시작할 때 한 번 대조한다. 어긋나 있으면 첫 주문부터 거절될 수 있다.
+    # 자동으로 고치지 않는다(원인에 따라 대응이 달라서) — 사람에게 알린다.
+    mismatch = runner.reconcile()
+    if mismatch:
+        print(f"  [경고] {mismatch}", flush=True)
+        notifier.send(format_mismatch(mismatch, cfg), dedupe_key=f"mismatch-{mismatch}")
 
     print("=" * 74)
     print(f"  KORU 감시 시작 · {cfg.symbol}")
@@ -545,7 +598,14 @@ def _cmd_watch(args: argparse.Namespace, cfg: StrategyConfig) -> int:
             return 130
         except Exception as exc:
             logger.error("점검 실패: %s: %s", type(exc).__name__, exc)
-            notifier.send(format_error(exc, context="watch"))
+            # dedupe 키가 없으면 네트워크 장애처럼 계속 실패하는 상황에서
+            # 주기마다 알림이 나간다(15분 주기면 하루 96통). 같은 오류는
+            # 하루 한 번만 알린다 — 차단 알림과 같은 규칙이다.
+            day = __import__("datetime").date.today().isoformat()
+            notifier.send(
+                format_error(exc, context="watch"),
+                dedupe_key=f"error-{type(exc).__name__}-{day}",
+            )
 
         if args.once:
             return 0
@@ -554,6 +614,31 @@ def _cmd_watch(args: argparse.Namespace, cfg: StrategyConfig) -> int:
         except KeyboardInterrupt:
             print("\n감시를 중단한다.")
             return 130
+
+
+def _restore_paper_position(broker: Broker, store: StateStore, cfg: StrategyConfig) -> None:
+    """페이퍼 브로커의 가상 잔고를 상태 DB 포지션으로 맞춘다.
+
+    페이퍼 브로커는 잔고를 메모리에만 들고 있어 프로세스가 뜰 때마다 0주다.
+    맞추지 않으면 재시작 뒤 첫 매도가 "보유 0주" 로 거절되고, DB 는 계속
+    포지션이 있다고 믿어 진입 검사까지 멈춘다(2026-09-09~11 실제 사고).
+
+    **실브로커에는 아무것도 하지 않는다.** 실계좌 잔고를 로컬 기록으로 덮으면 안 된다.
+    """
+    from koru_trade.broker.paper import PaperBroker
+
+    if not isinstance(broker, PaperBroker):
+        return
+    pos = store.load_position(cfg.symbol)
+    if not pos.is_open:
+        return
+    broker.seed_position(cfg.symbol, pos.qty, pos.avg_price_usd)
+    logger.info(
+        "페이퍼 브로커 잔고를 상태 DB 로 복원했다: %s %d주 @ $%.2f",
+        cfg.symbol,
+        pos.qty,
+        pos.avg_price_usd,
+    )
 
 
 def _make_broker(args: argparse.Namespace, cfg: StrategyConfig) -> Broker:
@@ -590,13 +675,22 @@ def _cmd_web(args: argparse.Namespace, cfg: StrategyConfig) -> int:
 
     from koru_trade.live import StateStore
     from koru_trade.web import DashboardServer
+    from koru_trade.web.server import DEFAULT_TTL
 
     bars = _load(args, cfg)
     store = StateStore(args.state) if _P(args.state).exists() else None
     if store is None:
         print(f"상태 DB 가 없다({args.state}). 실계좌 구역은 비어 있게 표시된다.")
 
-    server = DashboardServer(bars, cfg, store=store, port=args.port)
+    refresh = float(getattr(args, "refresh", 0.0) or 0.0)
+    server = DashboardServer(
+        bars,
+        cfg,
+        store=store,
+        port=args.port,
+        ttl=refresh if refresh > 0 else DEFAULT_TTL,
+        bars_provider=(lambda: _load(args, cfg)) if refresh > 0 else None,
+    )
     print()
     print("=" * 74)
     print(f"  KORU 대시보드가 열렸다 -> {server.url}")
@@ -605,6 +699,10 @@ def _cmd_web(args: argparse.Namespace, cfg: StrategyConfig) -> int:
         f"  종목      {cfg.symbol}  ({bars[0].ts:%Y-%m-%d} ~ {bars[-1].ts:%Y-%m-%d}, {len(bars)}봉)"
     )
     print("  바인딩    127.0.0.1 전용 (다른 기기에서는 접근 불가)")
+    print(
+        "  시세 갱신  "
+        + (f"{refresh:,.0f}초마다 다시 받는다" if refresh > 0 else "없음(켤 때 받은 시세 고정)")
+    )
     print("  중지      Ctrl+C")
     print()
     if args.open:

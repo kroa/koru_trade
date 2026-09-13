@@ -161,6 +161,35 @@ class PaperBroker:
         logger.info("%s", result.message)
         return result
 
+    def seed_position(self, symbol: str, qty: int, avg_price_usd: float) -> None:
+        """저장된 포지션으로 가상 잔고를 복원한다.
+
+        페이퍼 브로커는 보유 수량을 **메모리에만** 들고 있다. 실계좌라면 증권사가
+        잔고를 기억하지만, 여기서는 프로세스가 뜰 때마다 0주다. 반면 상태 DB 에는
+        포지션이 그대로 남으므로, 보유 중에 재시작하면 둘이 어긋난다.
+
+        실제로 2026-09-08 에 37주를 산 직후 감시를 재시작했더니 이후 매도가
+        "보유 0주보다 많이 팔 수 없다" 로 사흘간 349번 거절됐다. DB 는 계속
+        37주를 들고 있다고 믿어서 진입 조건 검사까지 멈췄다.
+
+        모의투자에서는 상태 DB 가 유일한 원장이므로 시작할 때 이 메서드로 맞춘다.
+        실브로커에는 이런 메서드가 없다 — 실계좌 잔고를 로컬 기록으로 덮으면 안 된다.
+
+        Args:
+            symbol: 종목.
+            qty: 보유 수량. 0 이면 포지션을 지운다.
+            avg_price_usd: 평균 단가(USD). ``qty`` 가 양수면 0보다 커야 한다.
+        """
+        if qty < 0:
+            raise ValueError(f"수량은 음수일 수 없다: {qty}")
+        if qty == 0:
+            self._positions.pop(symbol, None)
+            return
+        # NaN 도 여기서 걸린다(NaN > 0 은 False).
+        if not avg_price_usd > 0:
+            raise ValueError(f"평균 단가는 0보다 커야 한다: {avg_price_usd}")
+        self._positions[symbol] = (qty, avg_price_usd)
+
     def cancel(self, client_order_id: str) -> OrderResult:
         """가상 브로커는 즉시 체결하므로 취소할 미체결이 없다."""
         return OrderResult(

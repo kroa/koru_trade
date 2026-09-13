@@ -112,6 +112,28 @@ class Bar:
             value = getattr(self, name)
             if value <= 0:
                 raise ValueError(f"{name} 은 0보다 커야 한다: {value}")
+        # 시가·종가가 고저 범위 밖이면 그 봉은 신뢰할 수 없다.
+        #
+        # high >= low 만 봐서는 부족하다. 실제로 2026-09-08 장중에 시세 제공자가
+        # O 20.93 / H 24.54 / L 24.07 / C 24.15 를 준 적이 있다. 시가가 저가보다
+        # 15% 낮은데 high >= low 는 만족하므로 그대로 통과했고, 그 결과 시가갭이
+        # -10.82% 로 계산돼 진입이 엉뚱한 이유로 차단됐다. 시가는 나흘 전 값이
+        # 그대로 복사된 것이었다.
+        #
+        # 어느 값이 틀렸는지 알 수 없으므로 봉 전체를 버린다. 로더가 이 예외를
+        # 잡아 건너뛰고, 버려진 봉이 맨 뒤면 별도로 경고한다.
+        #
+        # 실측: KORU·EWY·SOXL·TQQQ 3년치 3,008봉에서 범위 이탈 0건이었다.
+        # 조정주가 반올림으로 생기는 오차는 없으므로 허용치를 두지 않는다
+        # (부동소수 표현 오차만 상대 1e-9 로 흡수한다).
+        tol = self.high * 1e-9
+        for name in ("open", "close"):
+            value = getattr(self, name)
+            if value < self.low - tol or value > self.high + tol:
+                raise ValueError(
+                    f"{name}({value}) 이 저가({self.low})~고가({self.high}) 범위 밖이다. "
+                    "시세 제공자 오류로 보고 이 봉을 버린다"
+                )
         if self.volume < 0:
             raise ValueError(f"volume 은 음수일 수 없다: {self.volume}")
 
