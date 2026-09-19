@@ -19,46 +19,27 @@
 from __future__ import annotations
 
 import argparse
-import datetime as dt
-import json
-import re
 import sys
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from _site_common import next_open_kst, render, resolve_config  # noqa: E402
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.backtest import compute_metrics, run_backtest  # noqa: E402
 from koru_trade.backtest.walkforward import bootstrap_confidence, walk_forward  # noqa: E402
-from koru_trade.config import StrategyConfig, load_strategy_config  # noqa: E402
+from koru_trade.config import StrategyConfig  # noqa: E402
 from koru_trade.data import load_bars  # noqa: E402
-from koru_trade.market_calendar import is_trading_day, next_trading_day  # noqa: E402
 from koru_trade.models import Bar  # noqa: E402
 from koru_trade.pnl import required_sell_price_usd  # noqa: E402
 from koru_trade.strategy import evaluate_entry, plan_entry  # noqa: E402
 
 TEMPLATE = ROOT / "scripts" / "site_template.html"
 DEFAULT_OUT = ROOT / "build" / "koru_signals.html"
-ACTIVE_CONFIG = ROOT / "config" / "strategy.yaml"
-FALLBACK_CONFIG = ROOT / "config" / "frequent.example.yaml"
-WEEKDAY_KO = ["월", "화", "수", "목", "금", "토", "일"]
-PLACEHOLDER = "__DATA__"
-
-
-def resolve_config(explicit: str | None) -> tuple[StrategyConfig, Path]:
-    """쓸 설정 파일을 정한다. 어느 것을 썼는지 호출부가 출력할 수 있게 경로도 준다."""
-    if explicit:
-        path = Path(explicit)
-    elif ACTIVE_CONFIG.exists():
-        path = ACTIVE_CONFIG
-    else:
-        path = FALLBACK_CONFIG
-    if not path.exists():
-        raise SystemExit(f"설정 파일이 없다: {path}")
-    return load_strategy_config(path), path
 
 
 def threshold_close(bars: tuple[Bar, ...], cfg: StrategyConfig) -> float:
@@ -84,17 +65,6 @@ def threshold_close(bars: tuple[Bar, ...], cfg: StrategyConfig) -> float:
         else:
             lo = mid
     return hi
-
-
-def next_open_kst() -> str:
-    """다음 미국 정규장 개장 시각을 한국시간 문자열로."""
-    ny = ZoneInfo("America/New_York")
-    kr = ZoneInfo("Asia/Seoul")
-    now_ny = dt.datetime.now(kr).astimezone(ny)
-    inclusive = is_trading_day(now_ny.date()) and now_ny.time() < dt.time(9, 30)
-    day = next_trading_day(now_ny.date(), inclusive=inclusive)
-    opens = dt.datetime.combine(day, dt.time(9, 30), ny).astimezone(kr)
-    return f"{opens:%m/%d}({WEEKDAY_KO[opens.weekday()]}) {opens:%H:%M}"
 
 
 def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
@@ -194,27 +164,6 @@ def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
     }
 
 
-def render(payload: dict[str, Any], out: Path) -> Path:
-    """템플릿에 데이터를 끼워 넣어 HTML 을 쓴다."""
-    template = TEMPLATE.read_text(encoding="utf-8")
-    if template.count(PLACEHOLDER) != 1:
-        raise SystemExit(f"템플릿에 {PLACEHOLDER} 가 정확히 1개 있어야 한다: {TEMPLATE}")
-    data = json.dumps(payload, ensure_ascii=False)
-    if "</script" in data.lower():
-        raise SystemExit("데이터에 script 종료 태그가 들어가 페이지가 깨진다")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(template.replace(PLACEHOLDER, data), encoding="utf-8", newline="\n")
-
-    # 끼워 넣은 JSON 이 실제로 파싱되는지 확인한다. 깨진 페이지를 발행하면
-    # 화면이 통째로 비는데, 발행 뒤에는 알아채기 어렵다.
-    written = out.read_text(encoding="utf-8")
-    match = re.search(r'<script id="payload" type="application/json">(.*?)</script>', written, re.S)
-    if match is None:
-        raise SystemExit("발행 파일에서 payload 블록을 찾지 못했다")
-    json.loads(match.group(1))
-    return out
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="KORU 신호 원장 사이트 생성")
     parser.add_argument("--config", help="전략 설정 YAML 경로")
@@ -226,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"전략 설정: {cfg_path}")
     bars = load_bars(cfg.symbol, period=args.period, cache_dir=None)
     payload = build_payload(bars, cfg)
-    out = render(payload, Path(args.out))
+    out = render(payload, TEMPLATE, Path(args.out))
 
     summary = payload["summary"]
     nxt = payload["next"]

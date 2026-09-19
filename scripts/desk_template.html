@@ -1,0 +1,600 @@
+<title>KORU 상황실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+
+<style>
+:root {
+  --ground:#F6F7F9; --panel:#FFFFFF; --panel-2:#F0F2F6;
+  --line:#DDE1E9; --line-2:#E9ECF2;
+  --ink-1:#12151C; --ink-2:#4A5265; --ink-3:#79809A;
+  --gain:#C42A3D; --gain-dim:rgba(196,42,61,.12);
+  --loss:#2C6BA8; --loss-dim:rgba(44,107,168,.12);
+  --gold:#8A6420; --gold-dim:rgba(138,100,32,.14);
+  --grid:rgba(18,21,28,.07);
+  --shadow:0 1px 2px rgba(18,21,28,.05), 0 8px 24px -12px rgba(18,21,28,.18);
+  --radius:3px;
+  --f-display:"Fraunces","Iowan Old Style",Georgia,serif;
+  --f-body:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0C0E14; --panel:#131722; --panel-2:#1A1F2C;
+    --line:#262C3B; --line-2:#1E2431;
+    --ink-1:#EEF1F6; --ink-2:#A2AABC; --ink-3:#6E7688;
+    --gain:#E8465A; --gain-dim:rgba(232,70,90,.16);
+    --loss:#4A92D8; --loss-dim:rgba(74,146,216,.16);
+    --gold:#D4A24C; --gold-dim:rgba(212,162,76,.16);
+    --grid:rgba(238,241,246,.07);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0C0E14; --panel:#131722; --panel-2:#1A1F2C;
+  --line:#262C3B; --line-2:#1E2431;
+  --ink-1:#EEF1F6; --ink-2:#A2AABC; --ink-3:#6E7688;
+  --gain:#E8465A; --gain-dim:rgba(232,70,90,.16);
+  --loss:#4A92D8; --loss-dim:rgba(74,146,216,.16);
+  --gold:#D4A24C; --gold-dim:rgba(212,162,76,.16);
+  --grid:rgba(238,241,246,.07);
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -14px rgba(0,0,0,.7);
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--ground); color:var(--ink-1);
+  font-family:var(--f-body); font-size:15px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; }
+.wrap { max-width:960px; margin:0 auto; padding:0 24px 80px; }
+
+.topbar { display:flex; align-items:center; justify-content:space-between;
+  gap:16px; padding:20px 0 0; }
+.brand { display:flex; align-items:baseline; gap:11px; }
+.brand .tick { font-family:var(--f-mono); font-weight:600; font-size:14px;
+  letter-spacing:.18em; }
+.brand .sub { font-size:11.5px; color:var(--ink-3); letter-spacing:.05em; }
+.tbtn { font-family:var(--f-mono); font-size:11px; letter-spacing:.1em;
+  background:transparent; color:var(--ink-3); border:1px solid var(--line);
+  border-radius:var(--radius); padding:6px 11px; cursor:pointer;
+  transition:color .18s,border-color .18s; }
+.tbtn:hover { color:var(--ink-1); border-color:var(--ink-3); }
+.tbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+
+header.hero { padding:44px 0 32px; border-bottom:1px solid var(--line); }
+.eyebrow { font-family:var(--f-mono); font-size:11px; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--gold); margin-bottom:16px; }
+h1 { font-family:var(--f-display); font-variation-settings:"SOFT" 0,"WONK" 0,"opsz" 120;
+  font-weight:300; font-size:clamp(34px,5.6vw,58px); line-height:1.04;
+  letter-spacing:-.02em; margin:0 0 16px; text-wrap:balance; }
+h1 em { font-style:normal; font-weight:700;
+  font-variation-settings:"SOFT" 0,"WONK" 1,"opsz" 120; }
+.lede { font-size:15.5px; color:var(--ink-2); max-width:60ch; margin:0; }
+
+section { padding-top:52px; }
+.shead { display:flex; align-items:baseline; gap:13px; margin-bottom:5px; }
+.snum { font-family:var(--f-mono); font-size:11px; color:var(--gold);
+  letter-spacing:.1em; padding-top:5px; }
+.shead h2 { font-family:var(--f-display);
+  font-variation-settings:"SOFT" 0,"WONK" 0,"opsz" 40;
+  font-weight:500; font-size:24px; margin:0; letter-spacing:-.01em; }
+.sdesc { color:var(--ink-2); font-size:14px; max-width:66ch; margin:0 0 20px 28px; }
+
+.card { background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); padding:22px; box-shadow:var(--shadow); }
+.grid2 { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; }
+@media (max-width:760px){ .grid2 { grid-template-columns:1fr; } }
+
+.strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(122px,1fr));
+  gap:1px; background:var(--line); border:1px solid var(--line);
+  border-radius:var(--radius); overflow:hidden; margin-top:26px; }
+.stat { background:var(--panel); padding:16px; }
+.stat .k { font-family:var(--f-mono); font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:6px; }
+.stat .v { font-family:var(--f-mono); font-weight:600; font-size:22px;
+  letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1; }
+.stat .n { font-size:11px; color:var(--ink-3); margin-top:4px; }
+.up{color:var(--gain)} .down{color:var(--loss)} .neu{color:var(--ink-1)}
+
+.badge { display:inline-flex; align-items:center; gap:8px; font-family:var(--f-mono);
+  font-size:12px; letter-spacing:.1em; padding:6px 12px; border-radius:2px;
+  border:1px solid currentColor; margin-bottom:16px; }
+.badge.no { background:var(--loss-dim); color:var(--loss); }
+.badge.yes { background:var(--gain-dim); color:var(--gain); }
+.badge .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+.checks { list-style:none; margin:0; padding:0; }
+.checks li { display:flex; align-items:center; gap:10px; padding:8px 0;
+  border-bottom:1px solid var(--line-2); font-size:13.5px; }
+.checks li:last-child { border-bottom:0; }
+.chk { width:15px; height:15px; flex:none; border-radius:2px; display:grid;
+  place-items:center; font-size:9px; font-family:var(--f-mono); font-weight:600; }
+.chk.ok { background:var(--gain-dim); color:var(--gain); }
+.chk.no { background:var(--loss-dim); color:var(--loss); }
+.checks .nm { flex:1; }
+.checks .vl { font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3); }
+
+label { display:block; font-family:var(--f-mono); font-size:10.5px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); margin-bottom:6px; }
+input[type=number], textarea {
+  width:100%; background:var(--panel-2); color:var(--ink-1);
+  border:1px solid var(--line); border-radius:var(--radius);
+  padding:10px 12px; font-family:var(--f-mono); font-size:15px;
+  font-variant-numeric:tabular-nums; }
+textarea { font-family:var(--f-body); resize:vertical; min-height:78px; line-height:1.55; }
+input:focus, textarea:focus { outline:2px solid var(--gold); outline-offset:1px; border-color:transparent; }
+.inrow { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+
+table { border-collapse:collapse; width:100%; }
+th,td { padding:8px 10px; text-align:right; font-size:13px;
+  border-bottom:1px solid var(--line-2); white-space:nowrap; }
+th { font-family:var(--f-mono); font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3); font-weight:500; }
+th:first-child, td:first-child { text-align:left; }
+td.num { font-family:var(--f-mono); font-variant-numeric:tabular-nums; }
+tr.hit td { background:var(--gain-dim); }
+
+.btn { font-family:var(--f-body); font-size:14px; font-weight:500;
+  background:var(--ink-1); color:var(--ground); border:0;
+  border-radius:var(--radius); padding:11px 20px; cursor:pointer;
+  transition:opacity .16s; }
+.btn:hover { opacity:.86; }
+.btn:disabled { opacity:.4; cursor:default; }
+.btn.ghost { background:transparent; color:var(--ink-2); border:1px solid var(--line); }
+.btn:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+
+.chips { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0 0; }
+.chip { font-size:12.5px; padding:7px 12px; border-radius:2px; cursor:pointer;
+  background:transparent; color:var(--ink-2); border:1px solid var(--line);
+  transition:all .16s; text-align:left; font-family:var(--f-body); }
+.chip:hover { color:var(--ink-1); border-color:var(--ink-3); }
+.chip:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+
+#log { display:flex; flex-direction:column; gap:14px; margin-top:20px; }
+.turn { border-left:2px solid var(--line); padding-left:14px; }
+.turn.q { border-left-color:var(--ink-3); }
+.turn.a { border-left-color:var(--gold); }
+.turn .who { font-family:var(--f-mono); font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:5px; }
+.turn .body { font-size:14.5px; white-space:pre-wrap; word-break:break-word; }
+.turn.err .body { color:var(--loss); }
+
+.note { margin-top:22px; padding:15px 18px; border-left:2px solid var(--gold);
+  background:var(--gold-dim); border-radius:0 var(--radius) var(--radius) 0;
+  font-size:13px; color:var(--ink-2); }
+.note b { color:var(--ink-1); font-weight:600; }
+footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line);
+  font-size:12px; color:var(--ink-3); display:flex; justify-content:space-between;
+  flex-wrap:wrap; gap:10px; }
+footer a { color:var(--ink-2); }
+.mono { font-family:var(--f-mono); }
+[hidden] { display:none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <span class="tick">KORU</span>
+      <span class="sub">Direxion Daily MSCI South Korea Bull 3X · 원화 기준</span>
+    </div>
+    <button class="tbtn" id="theme" type="button">테마</button>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow" id="asof">—</div>
+    <h1>지금 <em>KORU</em>는<br>어떤 상태인가</h1>
+    <p class="lede">
+      확정된 마지막 봉 기준의 시장 상태, 진입 조건 판정, 그리고 보유 중이라면
+      어디서 팔고 어디서 잘라야 하는지. 아래에서 직접 물어볼 수도 있다.
+    </p>
+    <div class="strip" id="strip"></div>
+  </header>
+
+  <section>
+    <div class="shead"><span class="snum">01</span><h2>진입 조건 판정</h2></div>
+    <p class="sdesc">아래 조건을 모두 통과해야 매수 신호가 난다. 하나라도 막히면 신호는 없다.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="badge" id="verdict"><span class="dot"></span><span id="vtxt">—</span></div>
+        <ul class="checks" id="checks"></ul>
+      </div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">시장 상태</div>
+        <table id="mkt"></table>
+        <p class="note" style="margin-top:16px" id="decaynote">—</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><span class="snum">02</span><h2>내 포지션</h2></div>
+    <p class="sdesc">
+      수량과 평단을 넣으면 익절·손절 가격을 원화 기준으로 계산한다.
+      입력값은 이 브라우저에만 저장되고 페이지에는 담기지 않는다.
+    </p>
+    <div class="card">
+      <div class="inrow">
+        <div><label for="qty">보유 수량</label>
+          <input type="number" id="qty" min="0" step="1" placeholder="410"></div>
+        <div><label for="avg">평단 (USD)</label>
+          <input type="number" id="avg" min="0" step="0.01" placeholder="20.32"></div>
+      </div>
+      <div class="inrow">
+        <div><label for="efx">매수 환율</label>
+          <input type="number" id="efx" min="0" step="1" placeholder="1342"></div>
+        <div><label for="cur">현재가 (USD)</label>
+          <input type="number" id="cur" min="0" step="0.01"></div>
+      </div>
+      <div id="posout" hidden>
+        <div class="strip" id="posstrip" style="margin-top:4px"></div>
+        <table id="ladder" style="margin-top:18px"></table>
+        <p class="note" id="posnote">—</p>
+      </div>
+      <p id="posempty" style="color:var(--ink-3);font-size:13.5px;margin:0">
+        수량과 평단을 입력하면 계산한다.
+      </p>
+    </div>
+  </section>
+
+  <section id="ask">
+    <div class="shead"><span class="snum">03</span><h2>물어보기</h2></div>
+    <p class="sdesc">
+      위 숫자와 이 전략의 규칙을 근거로 답한다. 시세를 새로 조회하거나 주문을 내지는 않는다.
+    </p>
+    <div class="card">
+      <div id="qaOff" hidden>
+        <p style="margin:0;color:var(--ink-2);font-size:14px">
+          이 화면에서는 질문 기능을 쓸 수 없다. 아티팩트를 소유한 계정으로 열면 동작한다.
+        </p>
+      </div>
+      <div id="qaOn" hidden>
+        <label for="q">질문</label>
+        <textarea id="q" placeholder="예) 지금 사도 되는 자리야? 왜 신호가 안 나?"></textarea>
+        <div style="display:flex;gap:9px;margin-top:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn" id="send" type="button">질문하기</button>
+          <button class="btn ghost" id="stop" type="button" hidden>중지</button>
+          <span class="mono" id="qstate" style="font-size:11.5px;color:var(--ink-3)"></span>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div id="log"></div>
+      </div>
+    </div>
+    <div class="note">
+      <b>답변은 참고용이다.</b> 여기 담긴 숫자는 마지막 확정 봉 기준이고, 장중 가격은 반영되지 않는다.
+      매매 판단과 주문은 사용자가 한다.
+    </div>
+  </section>
+
+  <footer>
+    <span>확정 봉 <span class="mono" id="foot">—</span> 기준 · 실거래 기록 아님</span>
+    <span>과거 신호 이력은 <a href="https://claude.ai/code/artifact/42c3de72-16ab-47ee-b32c-ab7f90f9e009">신호 원장</a>에</span>
+  </footer>
+</div>
+
+<script id="payload" type="application/json">__DATA__</script>
+<script>
+(function () {
+  "use strict";
+  var D = JSON.parse(document.getElementById("payload").textContent);
+  var $ = function (id) { return document.getElementById(id); };
+  var pct = function (v, d) { return (v >= 0 ? "+" : "") + (v * 100).toFixed(d === undefined ? 2 : d) + "%"; };
+  var won = function (v) { return (v >= 0 ? "+" : "-") + Math.abs(Math.round(v)).toLocaleString("ko-KR") + "원"; };
+  var usd = function (v) { return "$" + Number(v).toFixed(2); };
+  var cls = function (v) { return v >= 0 ? "up" : "down"; };
+
+  /* ── 헤더 ─────────────────────────────── */
+  $("asof").textContent = D.bar + " 확정 봉 기준 · 갱신 " + D.updated;
+  $("foot").textContent = D.bar;
+  var STAT = [
+    { k: "종가", v: usd(D.price), c: "neu", n: "확정 " + D.bar },
+    { k: "환율", v: D.fx.toLocaleString("ko-KR"), c: "neu", n: "USD/KRW" },
+    { k: "ATR", v: (D.atrPct * 100).toFixed(1) + "%", c: "neu", n: "하루 변동폭 " + usd(D.atr) },
+    { k: "EMA 격차", v: pct(D.emaGap, 2), c: cls(D.emaGap), n: "10일 대 30일" },
+    { k: "RSI", v: String(D.rsi), c: "neu", n: "ADX " + D.adx },
+    { k: "다음 개장", v: D.nextOpen.split(" ")[1] || "-", c: "neu", n: D.nextOpen.split(" ")[0] }
+  ];
+  $("strip").innerHTML = STAT.map(function (s) {
+    return '<div class="stat"><div class="k">' + s.k + '</div><div class="v ' + s.c + '">' +
+      s.v + '</div><div class="n">' + s.n + "</div></div>";
+  }).join("");
+
+  var VOL_SRC = { ewy: "EWY 60일 실측", approx: "KORU 변동성/3 근사",
+    none: "표본 부족 — 계산 못 함" }[D.ewyVolSource] || "출처 불명";
+
+  /* ── 01 판정 ──────────────────────────── */
+  var vb = $("verdict");
+  vb.className = "badge " + (D.allowed ? "yes" : "no");
+  $("vtxt").textContent = D.allowed
+    ? "진입 조건 " + D.checks.length + "개 전부 통과"
+    : "진입 보류 · " + D.blockers.length + "/" + D.checks.length + "개 미충족";
+  $("checks").innerHTML = D.checks.map(function (c) {
+    return '<li><span class="chk ' + (c.ok ? "ok" : "no") + '">' + (c.ok ? "✓" : "✕") +
+      '</span><span class="nm">' + c.name + '</span><span class="vl">' +
+      (c.ok ? "통과" : "차단") + "</span></li>";
+  }).join("");
+
+  var MKT = [
+    ["EMA10 / EMA30", usd(D.ema10) + " / " + usd(D.ema30)],
+    ["EMA 격차", pct(D.emaGap, 2)],
+    ["ATR (14)", usd(D.atr) + "  (" + (D.atrPct * 100).toFixed(1) + "%)"],
+    ["RSI (14)", String(D.rsi)],
+    ["ADX (14)", String(D.adx)],
+    ["기초지수 변동성", (D.ewyVol * 100).toFixed(2) + "%  (" + VOL_SRC + ")"],
+    ["만든 설정", D.configName || "-"]
+  ];
+  $("mkt").innerHTML = MKT.map(function (r) {
+    return "<tr><td>" + r[0] + '</td><td class="num">' + r[1] + "</td></tr>";
+  }).join("");
+  $("decaynote").innerHTML = (D.ewyVolSource === "none")
+    ? "3배 상품은 방향과 무관하게 매일 녹는다. 다만 이번 갱신에서는 <b>기초지수 변동성 표본이 모자라 감쇠를 계산하지 못했다.</b>"
+    : "3배 상품은 방향과 무관하게 매일 녹는다. 지금 변동성이면 <b>하루 " +
+      (D.decayDaily * 100).toFixed(2) + "%</b>, 20거래일이면 약 <b>" +
+      ((1 - Math.pow(1 + D.decayDaily, 20)) * 100).toFixed(1) + "%</b>다.";
+
+  /* ── 02 포지션 ────────────────────────── */
+  var C = D.cost, R = D.rules;
+  /* pnl.krw_cost / krw_proceeds 를 주당 기준으로 그대로 옮긴 것.
+     매수측 요율을 매도에도 쓰던 시절 저장소 엔진과 갈라졌다(대칭 설정에서도 0.29%p,
+     환전 우대가 없는 설정이면 0.4%p 이상). 수수료·SEC·주당 정액 TAF·양쪽 환전
+     스프레드를 전부 쓴다. 슬리피지는 체결가에 먼저 붙인다(AGENTS.md 도메인 함정). */
+  function krwReturn(buy, bfx, sell, sfx) {
+    var inUsd = buy * (1 + C.slip), outUsd = sell * (1 - C.slip);
+    var cost = inUsd * (1 + C.fee) * bfx * (1 + C.fxSpread);
+    var fees = outUsd * (C.sellFee + C.secFee) + C.taf;
+    var proc = Math.max(0, outUsd - fees) * sfx * (1 - C.fxSpreadSell);
+    return proc / cost - 1;
+  }
+  function priceFor(target, avg, bfx, sfx) {
+    var lo = 0.01, hi = avg * 8;
+    for (var i = 0; i < 90; i++) {
+      var m = (lo + hi) / 2;
+      if (krwReturn(avg, bfx, m, sfx) >= target) { hi = m; } else { lo = m; }
+    }
+    return hi;
+  }
+  var KEY = "koru-desk-pos";
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        qty: $("qty").value, avg: $("avg").value, efx: $("efx").value, cur: $("cur").value
+      }));
+    } catch (e) { /* 저장소 차단 환경 */ }
+  }
+  function load() {
+    try {
+      var s = JSON.parse(localStorage.getItem(KEY) || "{}");
+      ["qty", "avg", "efx", "cur"].forEach(function (k) { if (s[k]) { $(k).value = s[k]; } });
+    } catch (e) { /* 무시 */ }
+  }
+  var POS = null;
+  function renderPos() {
+    var qty = parseFloat($("qty").value), avg = parseFloat($("avg").value);
+    var bfx = parseFloat($("efx").value) || D.fx;
+    var cur = parseFloat($("cur").value) || D.price;
+    if (!(qty > 0) || !(avg > 0)) {
+      $("posout").hidden = true; $("posempty").hidden = false; POS = null; return;
+    }
+    $("posout").hidden = false; $("posempty").hidden = true;
+    var r = krwReturn(avg, bfx, cur, D.fx);
+    var costKrw = qty * avg * (1 + C.slip) * (1 + C.fee) * bfx * (1 + C.fxSpread);
+    var pnl = costKrw * r;
+    var be = priceFor(0, avg, bfx, D.fx), hs = priceFor(R.hardStop, avg, bfx, D.fx);
+    POS = { qty: qty, avg: avg, bfx: bfx, cur: cur, r: r, pnl: pnl, be: be, hs: hs, val: qty * cur * D.fx };
+    $("posstrip").innerHTML = [
+      { k: "원화 수익률", v: pct(r), c: cls(r), n: "달러 " + pct(cur / avg - 1) },
+      { k: "평가손익", v: won(pnl), c: cls(pnl), n: "평가액 " + Math.round(qty * cur * D.fx).toLocaleString("ko-KR") + "원" },
+      { k: "본전", v: usd(be), c: "neu", n: pct(be / cur - 1, 1) + " 필요" },
+      { k: "손절", v: usd(hs), c: "down", n: "원화 " + pct(R.hardStop, 0) }
+    ].map(function (s) {
+      return '<div class="stat"><div class="k">' + s.k + '</div><div class="v ' + s.c + '">' +
+        s.v + '</div><div class="n">' + s.n + "</div></div>";
+    }).join("");
+
+    var rows = R.ladder.map(function (t) {
+      var p = priceFor(t.k, avg, bfx, D.fx);
+      var q = Math.round(qty * t.f);
+      var realized = (q * p * (1 - C.slip) * (1 - C.fee) * D.fx * (1 - C.fxSpread)) - costKrw * q / qty;
+      var hit = cur >= p;
+      return '<tr class="' + (hit ? "hit" : "") + '"><td>원화 +' + Math.round(t.k * 100) +
+        '%</td><td class="num">' + usd(p) + '</td><td class="num">' + pct(p / cur - 1, 1) +
+        '</td><td class="num">' + q + '주</td><td class="num ' + cls(realized) + '">' +
+        won(realized) + "</td></tr>";
+    }).join("");
+    $("ladder").innerHTML =
+      "<tr><th>익절 단계</th><th>주가</th><th>현재 대비</th><th>매도</th><th>실현</th></tr>" + rows;
+
+    var dayDecay = POS.val * Math.abs(D.decayDaily);
+    $("posnote").innerHTML = "이 크기면 감쇠가 <b>하루 약 " +
+      Math.round(dayDecay).toLocaleString("ko-KR") + "원</b>이다. " +
+      "전략 설계 자본은 " + Math.round(R.capital / 10000).toLocaleString("ko-KR") +
+      "만원이고 지금은 그 <b>" + (POS.val / R.capital).toFixed(1) + "배</b>다.";
+    save();
+  }
+  ["qty", "avg", "efx", "cur"].forEach(function (k) {
+    $(k).addEventListener("input", renderPos);
+  });
+  $("cur").placeholder = String(D.price);
+  load(); renderPos();
+
+  /* ── 03 물어보기 ──────────────────────── */
+  var SUGGEST = [
+    "지금 사도 되는 자리야?",
+    "왜 매수 신호가 안 나?",
+    "얼마까지 오르면 팔기 시작해야 해?",
+    "손절선은 어디고 왜 거기야?",
+    "3배 레버리지가 녹는다는 게 무슨 뜻이야?",
+    "지금 물타기 해도 될까?"
+  ];
+  var history = [];
+  var ctl = null;
+
+  function ctx() {
+    var lines = [
+      "KORU(Direxion Daily MSCI South Korea Bull 3X)의 원화 기준 분할매수·분할익절 전략을 돕는다.",
+      "",
+      "[확정 시장 상태] " + D.bar + " 종가 기준",
+      "종가 $" + D.price + ", 환율 " + D.fx + "원",
+      "EMA10 $" + D.ema10 + " / EMA30 $" + D.ema30 + " (격차 " + pct(D.emaGap, 2) + ")",
+      "ATR14 $" + D.atr + " = 주가의 " + (D.atrPct * 100).toFixed(1) + "%",
+      "RSI " + D.rsi + ", ADX " + D.adx + ", 기초지수 60일 변동성 " +
+        (D.ewyVol * 100).toFixed(2) + "% (" + VOL_SRC + ")",
+      "진입 게이트: " + (D.allowed ? D.checks.length + "개 전부 통과"
+        : "차단 — " + D.blockers.join(", ")),
+      "조건별: " + D.checks.map(function (c) { return c.name + (c.ok ? "(통과)" : "(차단)"); }).join(", "),
+      "막힌 조건 상세: " + (D.checks.filter(function (c) { return !c.ok; })
+        .map(function (c) { return c.name + " — " + c.detail; }).join(" / ") || "없음"),
+      "이 수치는 " + (D.configName || "기본") + " 설정으로 만들었다.",
+      "다음 개장: 한국시간 " + D.nextOpen,
+      "최근 10거래일 종가: " + D.recent.map(function (x) {
+        return x.d + " $" + x.c + "(" + pct(x.r, 1) + ")";
+      }).join(", "),
+      "",
+      "[전략 규칙]",
+      "원화 하드스톱 " + pct(R.hardStop, 0) + ", 최대 보유 " + R.maxHold + "영업일",
+      "손절선 = 1차 진입가 - " + R.stopAtr + "xATR, 최대 " + (R.maxStopPct * 100) + "%로 제한",
+      "익절 계단(원화): " + R.ladder.map(function (t) {
+        return "+" + Math.round(t.k * 100) + "%에 " + Math.round(t.f * 100) + "%";
+      }).join(", "),
+      "분할매수: " + R.scaleIn.map(function (s) {
+        return Math.round(s.w * 100) + "%를 진입가 -" + s.m + "xATR";
+      }).join(", ") + " — 단 그날 양봉이고 종가가 손절선 위일 때만",
+      "설계 자본 " + Math.round(R.capital / 10000) + "만원, 1회 최대 " + Math.round(R.maxPos / 10000) + "만원",
+      "왕복 거래비용 약 " + (C.roundTrip * 100).toFixed(2) + "% (수수료+환전+슬리피지)",
+      "",
+      "[측정된 사실 — 추측이 아니라 이 저장소에서 실측한 값]",
+      "1. 3배 상품은 매일 리밸런싱하므로 -0.5x(L^2-L)x분산 만큼 방향과 무관하게 녹는다.",
+      "   지금 변동성이면 하루 " + (D.decayDaily * 100).toFixed(2) + "%, 20거래일이면 약 " +
+        ((1 - Math.pow(1 + D.decayDaily, 20)) * 100).toFixed(1) + "%.",
+      "   운용보수는 연 1.32%로 감쇠의 100분의 1 수준. '수수료 때문'이라는 설명은 절반만 맞다.",
+      "2. 기초지수가 -10% 빠졌다 정확히 제자리로 와도 3배 상품은 -6.7% 남는다. 왕복할수록 손해다.",
+      "3. 박스권 하단 매수·상단 매도는 세 번 검증해 세 번 기각됐다. 저점 대비 상승률이 높은 구간의",
+      "   기대값이 오히려 가장 좋았다(100%+ 구간 +1.34%, 0~10% 구간 -0.07%). 모멘텀 자산이다.",
+      "4. 급락 다음날 매수는 동전던지기다(-12% 급락 후 1일 보유 n=18, t=0.03). 다만 2~3일 들고 가면",
+      "   중앙값 -8~-10%로 유의하게 나빠진다(t=-2.23). 잡으려면 다음날 팔아야 한다.",
+      "5. 요일 효과는 없다. 주간 저점·고점 요일 편중은 순열검정에서 p=0.72로 무작위와 구분되지 않는다.",
+      "6. 추세 필터(종가>EMA10>EMA30)를 풀면 매매는 33% 늘지만 손익비가 2.21에서 1.80으로 떨어진다.",
+      "",
+      "[답변 규칙]",
+      "- 한국어로, 사용자가 읽는 화면의 숫자와 일치하게 답한다.",
+      "- 방향을 예측하지 않는다. 기저율과 규칙이 말하는 바를 전달하고 판단은 사용자 몫으로 둔다.",
+      "- 근거가 없으면 없다고 말한다. 표본이 작으면 표본 수를 밝힌다.",
+      "- 위 데이터는 확정 봉 기준이며 장중 가격이 아님을 필요할 때 알린다.",
+      "- 길게 쓰지 않는다. 핵심 숫자와 이유를 먼저 쓴다."
+    ];
+    if (POS) {
+      lines.push("", "[사용자 보유]",
+        POS.qty + "주, 평단 $" + POS.avg.toFixed(2) + ", 매수환율 " + Math.round(POS.bfx),
+        "사용자가 보는 현재가 $" + POS.cur.toFixed(2) + " 기준 원화 " + pct(POS.r) + " (" + won(POS.pnl) + ")",
+        "본전 $" + POS.be.toFixed(2) + ", 손절 $" + POS.hs.toFixed(2),
+        "평가액 " + Math.round(POS.val).toLocaleString("ko-KR") + "원 = 설계 자본의 " +
+          (POS.val / R.capital).toFixed(1) + "배",
+        "이 크기의 하루 감쇠 약 " + Math.round(POS.val * Math.abs(D.decayDaily)).toLocaleString("ko-KR") + "원");
+    }
+    return lines.join("\n");
+  }
+
+  function addTurn(kind, who, text) {
+    var d = document.createElement("div");
+    d.className = "turn " + kind;
+    d.innerHTML = '<div class="who"></div><div class="body"></div>';
+    d.querySelector(".who").textContent = who;
+    d.querySelector(".body").textContent = text;
+    $("log").appendChild(d);
+    return d.querySelector(".body");
+  }
+
+  var ERR = {
+    not_granted: "질문 기능이 허용되지 않았다. 페이지를 새로 열고 권한을 허용해 달라.",
+    not_declared: "이 페이지에는 질문 기능이 선언되어 있지 않다.",
+    sampling_disabled: "이 계정에서는 질문 기능이 꺼져 있다.",
+    session_expired: "세션이 만료됐다. 새로고침한 뒤 다시 시도해 달라.",
+    rate_limited: "요청이 너무 잦다. 잠시 뒤에 다시 물어봐 달라.",
+    prompt_too_large: "질문이 너무 길다. 줄여서 다시 보내 달라.",
+    refused: "이 질문에는 답할 수 없다.",
+    empty_completion: "답이 비어서 돌아왔다. 질문을 조금 바꿔 다시 시도해 달라.",
+    capability_disabled: "질문 기능을 쓸 수 없는 상태다.",
+    capability_removed: "질문 기능이 해제됐다. 페이지를 새로고침해 달라.",
+    queue_overflow: "처리 대기가 밀렸다. 잠시 뒤 다시 시도해 달라.",
+    upstream_error: "일시적인 오류가 났다. 다시 시도해 달라."
+  };
+
+  /* 아티팩트 런타임 밖에서 열면(예: build/koru_desk.html 을 그냥 브라우저로 열면)
+     전역 claude 가 없다. 맨몸으로 부르면 ReferenceError 가 이 즉시실행함수를 끊어
+     테마 버튼까지 죽고, qaOn/qaOff 가 둘 다 hidden 으로 남아 빈 카드가 된다. */
+  var sampleReady = (typeof claude !== "undefined" && claude &&
+    typeof claude.use === "function") ? claude.use("sample") : Promise.resolve(null);
+
+  sampleReady.then(function (sample) {
+    if (!sample) { $("qaOff").hidden = false; return; }
+    $("qaOn").hidden = false;
+    $("chips").innerHTML = SUGGEST.map(function (s, i) {
+      return '<button class="chip" type="button" data-i="' + i + '">' + s + "</button>";
+    }).join("");
+    $("chips").addEventListener("click", function (ev) {
+      var b = ev.target.closest ? ev.target.closest(".chip") : null;
+      if (!b) { return; }
+      $("q").value = SUGGEST[+b.getAttribute("data-i")];
+      $("q").focus();
+    });
+
+    function ask() {
+      var text = $("q").value.trim();
+      if (!text) { return; }
+      $("q").value = "";
+      addTurn("q", "질문", text);
+      var out = addTurn("a", "답", "생각하는 중…");
+      $("send").disabled = true;
+      $("stop").hidden = false;
+      $("qstate").textContent = "답하는 중";
+
+      var turns = history.slice(-6).concat([{ role: "user", content: text }]);
+      turns[0] = { role: "user", content: ctx() + "\n\n---\n\n" + turns[0].content };
+      ctl = new AbortController();
+
+      sample(turns, {
+        signal: ctl.signal,
+        modelTier: "default",
+        onText: function (u) { out.textContent = u.text; }
+      }).then(function (res) {
+        out.textContent = res.text + (res.truncated ? "\n\n(길이 제한으로 잘렸다)" : "");
+        history.push({ role: "user", content: text });
+        history.push({ role: "assistant", content: res.text });
+      }).catch(function (e) {
+        var code = (e && e.code) || "upstream_error";
+        if (code === "cancelled") {
+          out.textContent = (e && e.text) ? e.text + "\n\n(중지했다)" : "중지했다.";
+          return;
+        }
+        out.parentElement.className = "turn a err";
+        out.textContent = ERR[code] || ERR.upstream_error;
+        if (code === "not_granted" || code === "sampling_disabled" ||
+            code === "capability_disabled" || code === "capability_removed") {
+          $("qaOn").hidden = true; $("qaOff").hidden = false;
+        }
+      }).then(function () {
+        $("send").disabled = false; $("stop").hidden = true;
+        $("qstate").textContent = ""; ctl = null;
+      });
+    }
+
+    $("send").addEventListener("click", ask);
+    $("stop").addEventListener("click", function () { if (ctl) { ctl.abort(); } });
+    $("q").addEventListener("keydown", function (ev) {
+      if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") { ask(); }
+    });
+  });
+
+  /* ── 테마 ─────────────────────────────── */
+  var root = document.documentElement;
+  try {
+    var saved = localStorage.getItem("koru-theme");
+    if (saved) { root.setAttribute("data-theme", saved); }
+  } catch (e) { /* 무시 */ }
+  $("theme").addEventListener("click", function () {
+    var cur = root.getAttribute("data-theme");
+    var sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var next = cur ? (cur === "dark" ? "light" : "dark") : (sysDark ? "light" : "dark");
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("koru-theme", next); } catch (e) { /* 무시 */ }
+  });
+}());
+</script>
