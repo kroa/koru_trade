@@ -50,6 +50,7 @@ _EXIT_KO = {
     ExitReason.HARD_STOP_KRW: "원화 하드스톱 도달",
     ExitReason.TRAILING_STOP: "트레일링 스톱",
     ExitReason.BREAKEVEN_STOP: "본전 스톱",
+    ExitReason.TREND_BREAK: "추세 꺾임 (이익 보전)",
     ExitReason.TIME_STOP: "보유기간 만료",
     ExitReason.REGIME_EXIT: "레짐 청산",
     ExitReason.KILL_SWITCH: "킬스위치",

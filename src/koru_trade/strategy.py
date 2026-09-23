@@ -565,6 +565,32 @@ def _decide_open(
                 metrics={**metrics, "trail_floor": floor},
             )
 
+    # (4-b) 추세 꺾임 청산 (이익 중에만) -------------------------------------
+    # 진입 조건이 "종가 > EMA_fast > EMA_slow" 이므로 그 첫 조건이 깨지는 순간이
+    # 가장 이른 꺾임 신호다. 본전 스톱(1단 후)과 트레일링(2단 후)은 익절 계단을
+    # 밟아야 켜지므로, 첫 문턱을 못 찍고 돌아선 매매는 여기서만 보호된다.
+    #
+    # 손실 구간은 건드리지 않는다. 그쪽은 손절선의 일이고, 추세가 꺾였다고
+    # 손실을 확정하면 정상 노이즈에 매번 털린다.
+    #
+    # 익절 계단(6)보다 먼저 본다. 추세가 꺾인 마당에 잔량을 남겨 다음 계단을
+    # 기다리는 것은 이 규칙의 목적과 정면으로 어긋나므로 전량 청산이 맞다.
+    trend_floor = cfg.trend_break_min_krw_return
+    if trend_floor is not None and krw_r > trend_floor:
+        fast = ind.ema([b.close for b in bars], cfg.ema_fast)
+        if fast is not None and price < fast:
+            return Decision(
+                Action.EXIT,
+                qty=position.qty,
+                reason=ExitReason.TREND_BREAK,
+                rationale=(
+                    f"현재가 ${price:.2f} 가 EMA{cfg.ema_fast} ${fast:.2f} 아래로 내려가 "
+                    f"추세가 꺾였다. 원화수익률 {krw_r:+.2%} 로 아직 이익이므로"
+                    f"(하한 {trend_floor:+.2%}) 되돌려주지 않고 전량 청산한다"
+                ),
+                metrics={**metrics, "ema_fast": fast},
+            )
+
     # (5-a) 장 마감 전 청산 --------------------------------------------------
     # 오버나이트 갭을 피하는 단타 규칙. 봉 타임스탬프가 ET 벽시계라는 전제다.
     cutoff_min = cfg.close_minutes_before_session_end

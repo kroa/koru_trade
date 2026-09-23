@@ -276,6 +276,7 @@ _REASON_KO = {
     ExitReason.HARD_STOP_KRW.value: "원화 손절",
     ExitReason.TRAILING_STOP.value: "트레일링 스톱",
     ExitReason.BREAKEVEN_STOP.value: "본전 스톱",
+    ExitReason.TREND_BREAK.value: "추세 꺾임",
     ExitReason.TIME_STOP.value: "타임 스톱",
     ExitReason.REGIME_EXIT.value: "레짐 청산",
     ExitReason.KILL_SWITCH.value: "킬스위치",

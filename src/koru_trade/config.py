@@ -238,6 +238,21 @@ class StrategyConfig:
     0.35 이면 +14% 를 찍은 뒤 +9.1% 로 밀리면 나온다.
     """
 
+    trend_break_min_krw_return: float | None = None
+    """이익 중에 추세가 꺾이면 청산한다. ``None`` 이면 이 규칙을 쓰지 않는다.
+
+    본전 스톱과 트레일링은 익절 계단을 밟은 뒤에만 켜진다. 그래서 첫 계단
+    문턱을 못 찍고 꺾인 매매는 아무 보호도 못 받고 타임 스톱까지 끌려간다.
+    이 규칙은 그 구간을 메운다.
+
+    값은 "원화 수익률이 이 값을 넘고 있을 때만 발동" 이라는 하한이다.
+    ``position_krw_return`` 이 매도수수료·SEC·TAF·매도 환전 스프레드를 이미
+    차감한 값이므로, ``0.0`` 은 "팔아서 원화가 남을 때만 나온다" 는 뜻이 된다.
+
+    다만 슬리피지는 ``krw_proceeds`` 가 반영하지 않는다(AGENTS.md 도메인 함정).
+    체결까지 이익을 확실히 남기려면 ``cost.slippage_rate`` 이상을 주어야 한다.
+    """
+
     max_holding_days: int = 5
     """타임 스톱(영업일). 단타 전략이므로 이 기간을 넘기면 사유 불문 청산한다.
 
@@ -364,6 +379,14 @@ class StrategyConfig:
             raise ValueError("hard_stop_krw_return 은 음수여야 한다")
         if not 0.0 < self.trailing_giveback < 1.0:
             raise ValueError("trailing_giveback 은 0과 1 사이여야 한다")
+        if self.trend_break_min_krw_return is not None and not (
+            0.0 <= self.trend_break_min_krw_return < 1.0
+        ):
+            raise ValueError(
+                f"trend_break_min_krw_return 은 0 이상 1 미만이어야 한다: "
+                f"{self.trend_break_min_krw_return}. 이 규칙은 이익을 지키는 "
+                "장치이지 손절이 아니므로 음수를 허용하지 않는다"
+            )
         if self.min_stop_pct >= self.max_stop_pct:
             raise ValueError("min_stop_pct 는 max_stop_pct 보다 작아야 한다")
         if self.max_holding_days < 1:
@@ -431,6 +454,7 @@ class StrategyConfig:
             "hard_stop_krw_return": self.hard_stop_krw_return,
             "trailing_after_tp": self.trailing_after_tp,
             "trailing_giveback": self.trailing_giveback,
+            "trend_break_min_krw_return": self.trend_break_min_krw_return,
             "max_holding_days": self.max_holding_days,
             "max_holding_bars": self.max_holding_bars,
             "close_minutes_before_session_end": self.close_minutes_before_session_end,
