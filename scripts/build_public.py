@@ -37,65 +37,30 @@ from _site_common import PUBLIC_CAPITAL_KRW  # noqa: E402
 DOCS = ROOT / "docs"
 
 PAGES = [
+    ("build_glance.py", "index.html", "오늘 사야 하나", "판정 한 장. 표지를 겸한다"),
     ("build_desk.py", "desk.html", "상황실", "지금 살 수 있는 상태인지, 규칙이 무엇인지"),
     ("build_site.py", "signals.html", "신호 원장", "3년치 매매 이력과 검증 결과"),
 ]
 
-INDEX = """<!doctype html>
-<html lang="ko">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KORU</title>
-<link rel="icon" href="data:,">
-<style>
-:root {{
-  --ground:#F6F7F9; --panel:#FFFFFF; --line:#DDE1E9;
-  --ink-1:#12151C; --ink-2:#4A5265; --ink-3:#79809A; --gold:#8A6420;
-  --f-body:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
-  --f-mono:ui-monospace,"Cascadia Mono",monospace;
-}}
-@media (prefers-color-scheme: dark) {{
-  :root:not([data-theme="light"]) {{
-    --ground:#0C0E14; --panel:#131722; --line:#262C3B;
-    --ink-1:#EEF1F6; --ink-2:#A2AABC; --ink-3:#6E7688; --gold:#D4A24C;
-  }}
-}}
-* {{ box-sizing:border-box; }}
-body {{ margin:0; background:var(--ground); color:var(--ink-1);
-  font-family:var(--f-body); font-size:15px; line-height:1.6;
-  -webkit-font-smoothing:antialiased; }}
-.wrap {{ max-width:720px; margin:0 auto; padding:64px 24px 80px; }}
-.eyebrow {{ font-family:var(--f-mono); font-size:11px; letter-spacing:.22em;
-  text-transform:uppercase; color:var(--gold); margin-bottom:14px; }}
-h1 {{ font-size:clamp(30px,6vw,44px); line-height:1.1; letter-spacing:-.02em;
-  margin:0 0 14px; font-weight:600; }}
-.lede {{ color:var(--ink-2); margin:0 0 40px; max-width:56ch; }}
-a.card {{ display:block; background:var(--panel); border:1px solid var(--line);
-  border-radius:3px; padding:22px; margin-bottom:14px; text-decoration:none;
-  color:inherit; transition:border-color .16s; }}
-a.card:hover {{ border-color:var(--ink-3); }}
-a.card h2 {{ margin:0 0 5px; font-size:17px; font-weight:600; }}
-a.card p {{ margin:0; color:var(--ink-2); font-size:14px; }}
-.meta {{ font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3);
-  margin-top:36px; padding-top:20px; border-top:1px solid var(--line);
-  line-height:1.9; }}
-.meta b {{ color:var(--ink-2); font-weight:500; }}
-</style>
-<div class="wrap">
-  <div class="eyebrow">Direxion Daily MSCI South Korea Bull 3X</div>
-  <h1>KORU</h1>
-  <p class="lede">
-    3배 레버리지 ETF 를 규칙으로만 매매하는 시스템의 현재 상태와 과거 기록.
-    사람이 그때그때 판단하지 않도록, 살 자격과 팔 이유를 미리 정해 두고 그대로 따른다.
-  </p>
+MARKER = "<!--MORE-->"
+"""판정 페이지 안에서 "다른 장 보기" 줄이 들어갈 자리."""
+
+MORE = """<nav class="more">
+  <div class="more-h">더 자세히</div>
 {cards}
-  <div class="meta">
-    <b>기준 봉</b> {bar} &nbsp;·&nbsp; <b>갱신</b> {updated} (한국시간)<br>
-    <b>기준 자본</b> 100만원 환산 &nbsp;·&nbsp; 실제 운용액이 아니다<br>
-    <b>주의</b> 투자 권유가 아니다. 3배 상품은 방향과 무관하게 매일 녹는다.
-  </div>
-</div>
-"""
+</nav>
+<style>
+.more{{margin-top:44px;padding-top:22px;border-top:1px solid var(--rule);
+  display:grid;gap:10px}}
+.more-h{{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}}
+.more a{{display:block;border:1px solid var(--rule);padding:15px 17px;
+  text-decoration:none;color:var(--ink);transition:border-color .16s}}
+.more a:hover{{border-color:var(--ink)}}
+.more a:focus-visible{{outline:2px solid var(--stop);outline-offset:2px}}
+.more a h2{{margin:0 0 3px;font-family:"Hahmlet",serif;font-weight:600;font-size:16px}}
+.more a p{{margin:0;font-size:13.5px;color:var(--ink-2)}}
+</style>"""
 
 
 def run(script: str, out: Path) -> None:
@@ -134,11 +99,17 @@ def main(argv: list[str] | None = None) -> int:
             bar, updated = b, (u if u != "?" else updated)
         cards.append(f'  <a class="card" href="{name}"><h2>{title}</h2><p>{desc}</p></a>')
 
+    # 표지는 "오늘 사야 하나"(index.html)가 겸한다. 링크만 모아 둔 페이지를 하나
+    # 더 두면 "화면이 너무 복잡하다" 는 문제를 한 겹 더 쌓게 된다. 대신 그 페이지
+    # 아래에 나머지 두 장으로 가는 줄을 덧붙인다.
     index = DOCS / "index.html"
+    html = index.read_text(encoding="utf-8")
+    if MARKER not in html:
+        raise SystemExit(f"{index.name} 에 {MARKER} 표식이 없다. 템플릿이 바뀌었다")
     index.write_text(
-        INDEX.format(cards="\n".join(cards), bar=bar, updated=updated), encoding="utf-8"
+        html.replace(MARKER, MORE.format(cards="\n".join(cards[1:]))), encoding="utf-8"
     )
-    print(f"\n표지: {index}  ({index.stat().st_size:,} bytes)")
+    print(f"\n표지 겸 판정: {index}  ({index.stat().st_size:,} bytes)")
     print(f"기준 봉 {bar} · 갱신 {updated}")
 
     # 실제 운용액이 남아 있으면 공개해선 안 된다. 눈으로 확인하지 말고 검사한다.
