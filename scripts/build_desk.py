@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from _site_common import KST, next_open_kst, render, resolve_config  # noqa: E402
+from _site_common import KST, anonymize, next_open_kst, render, resolve_config  # noqa: E402
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.config import StrategyConfig  # noqa: E402
@@ -341,6 +341,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", help="전략 설정 YAML 경로")
     parser.add_argument("--period", default="3y", help="시세 조회 기간 (기본 3y)")
     parser.add_argument("--out", default=str(DEFAULT_OUT), help="출력 HTML 경로")
+    parser.add_argument(
+        "--public",
+        action="store_true",
+        help="공개 배포용. 실제 운용액을 기준 자본 100만원으로 환산한다",
+    )
     args = parser.parse_args(argv)
 
     # 로더는 마지막 봉이 결측이면 경고한다. basicConfig 가 없으면 그 경고가
@@ -349,6 +354,9 @@ def main(argv: list[str] | None = None) -> int:
 
     cfg, cfg_path = resolve_config(args.config)
     print(f"전략 설정: {cfg_path}")
+    if args.public:
+        cfg = anonymize(cfg)
+        print(f"  공개 모드: 자본을 {cfg.capital_krw:,.0f}원 기준으로 환산했다")
     bars = load_bars(cfg.symbol, period=args.period, cache_dir=None)
     ewy_vol, vol_source = underlying_daily_vol(bars)
     payload = build_payload(bars, cfg, ewy_vol, vol_source=vol_source, config_name=cfg_path.name)

@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from _site_common import next_open_kst, render, resolve_config  # noqa: E402
+from _site_common import anonymize, next_open_kst, render, resolve_config  # noqa: E402
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.backtest import compute_metrics, run_backtest  # noqa: E402
@@ -169,10 +169,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", help="전략 설정 YAML 경로")
     parser.add_argument("--period", default="3y", help="시세 조회 기간 (기본 3y)")
     parser.add_argument("--out", default=str(DEFAULT_OUT), help="출력 HTML 경로")
+    parser.add_argument(
+        "--public",
+        action="store_true",
+        help="공개 배포용. 실제 운용액을 기준 자본 100만원으로 환산한다",
+    )
     args = parser.parse_args(argv)
 
     cfg, cfg_path = resolve_config(args.config)
     print(f"전략 설정: {cfg_path}")
+    if args.public:
+        cfg = anonymize(cfg)
+        print(f"  공개 모드: 자본을 {cfg.capital_krw:,.0f}원 기준으로 환산했다")
     bars = load_bars(cfg.symbol, period=args.period, cache_dir=None)
     payload = build_payload(bars, cfg)
     out = render(payload, TEMPLATE, Path(args.out))

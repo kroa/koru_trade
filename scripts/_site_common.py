@@ -37,6 +37,34 @@ US_OPEN_ET = dt.time(9, 30)
 
 PAYLOAD_RE = re.compile(r'<script id="payload" type="application/json">(.*?)</script>', re.S)
 
+PUBLIC_CAPITAL_KRW = 1_000_000.0
+"""공개 페이지에서 쓰는 기준 자본. 실제 운용액 대신 이 값으로 환산한다."""
+
+
+def anonymize(cfg: StrategyConfig) -> StrategyConfig:
+    """공개용 설정. 실제 운용액을 기준 자본으로 바꾼다.
+
+    페이지에는 계좌번호도 토큰도 없지만 ``capital_krw`` 와
+    ``risk.max_position_krw`` 는 사용자가 얼마를 굴리는지를 그대로 드러낸다.
+    수량·투입금액·실현손익이 전부 여기서 파생되므로 한 곳만 바꾸면 된다.
+
+    비율은 보존된다. 전략의 모든 문턱이 수익률 기준이라 100만원으로 환산해도
+    판정과 계단은 똑같이 읽힌다. 주수만 실제와 달라진다.
+    """
+    import dataclasses as _dc
+
+    scale = PUBLIC_CAPITAL_KRW / cfg.capital_krw
+    return _dc.replace(
+        cfg,
+        capital_krw=PUBLIC_CAPITAL_KRW,
+        risk=_dc.replace(
+            cfg.risk,
+            max_position_krw=cfg.risk.max_position_krw * scale,
+            max_daily_notional_krw=cfg.risk.max_daily_notional_krw * scale,
+            daily_loss_limit_krw=cfg.risk.daily_loss_limit_krw * scale,
+        ),
+    )
+
 
 def resolve_config(explicit: str | None) -> tuple[StrategyConfig, Path]:
     """쓸 설정 파일을 정한다. 어느 것을 썼는지 호출부가 출력할 수 있게 경로도 준다.

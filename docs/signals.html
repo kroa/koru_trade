@@ -1,0 +1,867 @@
+<title>KORU 신호 원장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+
+<style>
+/* ─────────────────────────────────────────────────────────
+   토큰 — 라이트가 기본, 다크는 아래에서 토큰만 재정의한다
+   ───────────────────────────────────────────────────────── */
+:root {
+  --ground:   #F6F7F9;
+  --panel:    #FFFFFF;
+  --panel-2:  #F0F2F6;
+  --line:     #DDE1E9;
+  --line-2:   #E9ECF2;
+  --ink-1:    #12151C;
+  --ink-2:    #4A5265;
+  --ink-3:    #79809A;
+  --gain:     #C42A3D;
+  --gain-dim: rgba(196, 42, 61, .12);
+  --loss:     #2C6BA8;
+  --loss-dim: rgba(44, 107, 168, .12);
+  --gold:     #8A6420;
+  --gold-dim: rgba(138, 100, 32, .14);
+  --wave:     #6B7488;
+  --grid:     rgba(18, 21, 28, .07);
+  --shadow:   0 1px 2px rgba(18,21,28,.05), 0 8px 24px -12px rgba(18,21,28,.18);
+  --radius:   3px;
+
+  --f-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --f-body: "IBM Plex Sans KR", -apple-system, "Malgun Gothic", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:   #0C0E14;
+    --panel:    #131722;
+    --panel-2:  #1A1F2C;
+    --line:     #262C3B;
+    --line-2:   #1E2431;
+    --ink-1:    #EEF1F6;
+    --ink-2:    #A2AABC;
+    --ink-3:    #6E7688;
+    --gain:     #E8465A;
+    --gain-dim: rgba(232, 70, 90, .16);
+    --loss:     #4A92D8;
+    --loss-dim: rgba(74, 146, 216, .16);
+    --gold:     #D4A24C;
+    --gold-dim: rgba(212, 162, 76, .16);
+    --wave:     #58607A;
+    --grid:     rgba(238, 241, 246, .07);
+    --shadow:   0 1px 2px rgba(0,0,0,.4), 0 12px 32px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:   #0C0E14;
+  --panel:    #131722;
+  --panel-2:  #1A1F2C;
+  --line:     #262C3B;
+  --line-2:   #1E2431;
+  --ink-1:    #EEF1F6;
+  --ink-2:    #A2AABC;
+  --ink-3:    #6E7688;
+  --gain:     #E8465A;
+  --gain-dim: rgba(232, 70, 90, .16);
+  --loss:     #4A92D8;
+  --loss-dim: rgba(74, 146, 216, .16);
+  --gold:     #D4A24C;
+  --gold-dim: rgba(212, 162, 76, .16);
+  --wave:     #58607A;
+  --grid:     rgba(238, 241, 246, .07);
+  --shadow:   0 1px 2px rgba(0,0,0,.4), 0 12px 32px -14px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink-1);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px 96px; }
+
+/* ── 상단 바 ─────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 20px 0 0;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand .tick {
+  font-family: var(--f-mono); font-weight: 600; font-size: 14px;
+  letter-spacing: .18em; color: var(--ink-1);
+}
+.brand .sub {
+  font-size: 11.5px; color: var(--ink-3); letter-spacing: .06em;
+}
+.tbtn {
+  font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em;
+  background: transparent; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 6px 11px; cursor: pointer; transition: color .18s, border-color .18s;
+}
+.tbtn:hover { color: var(--ink-1); border-color: var(--ink-3); }
+.tbtn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* ── 히어로 ─────────────────────────────────────────── */
+.hero { padding: 52px 0 40px; border-bottom: 1px solid var(--line); }
+.eyebrow {
+  font-family: var(--f-mono); font-size: 11px; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--gold); margin-bottom: 18px;
+}
+.hero h1 {
+  font-family: var(--f-display);
+  font-variation-settings: "SOFT" 0, "WONK" 0, "opsz" 120;
+  font-weight: 300; font-size: clamp(38px, 6.4vw, 72px);
+  line-height: 1.02; letter-spacing: -.02em; margin: 0 0 20px;
+  text-wrap: balance;
+}
+.hero h1 em {
+  font-style: normal; font-weight: 700;
+  font-variation-settings: "SOFT" 0, "WONK" 1, "opsz" 120;
+}
+.lede {
+  font-size: 16px; color: var(--ink-2); max-width: 62ch; margin: 0;
+}
+.lede b { color: var(--ink-1); font-weight: 600; }
+
+/* ── 핵심 지표 스트립 ─────────────────────────────────── */
+.strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  margin: 36px 0 0; border-radius: var(--radius); overflow: hidden;
+}
+.stat { background: var(--panel); padding: 18px 18px 16px; }
+.stat .k {
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 7px; font-family: var(--f-mono);
+}
+.stat .v {
+  font-family: var(--f-mono); font-weight: 600; font-size: 25px;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.stat .n { font-size: 11.5px; color: var(--ink-3); margin-top: 4px; }
+.up { color: var(--gain); } .down { color: var(--loss); }
+
+/* ── 섹션 ─────────────────────────────────────────── */
+section { padding-top: 68px; }
+.shead { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
+.snum {
+  font-family: var(--f-mono); font-size: 11px; color: var(--gold);
+  letter-spacing: .1em; padding-top: 6px;
+}
+.shead h2 {
+  font-family: var(--f-display);
+  font-variation-settings: "SOFT" 0, "WONK" 0, "opsz" 40;
+  font-weight: 500; font-size: 26px; margin: 0; letter-spacing: -.01em;
+}
+.sdesc { color: var(--ink-2); font-size: 14.5px; max-width: 68ch; margin: 0 0 24px 30px; }
+
+/* ── 판정 카드 ─────────────────────────────────────── */
+.verdict {
+  display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr);
+  gap: 22px; align-items: stretch;
+}
+@media (max-width: 780px) { .verdict { grid-template-columns: 1fr; } }
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow);
+}
+.vbadge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--f-mono); font-size: 12px; letter-spacing: .12em;
+  padding: 6px 12px; border-radius: 2px;
+  background: var(--loss-dim); color: var(--loss);
+  border: 1px solid currentColor; margin-bottom: 18px;
+}
+.vbadge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+.gauge { margin-top: 20px; }
+.gauge .lbl {
+  display: flex; justify-content: space-between; font-family: var(--f-mono);
+  font-size: 11.5px; color: var(--ink-3); margin-bottom: 8px;
+}
+.track {
+  height: 6px; background: var(--panel-2); border-radius: 3px;
+  position: relative; overflow: hidden;
+}
+.fill {
+  position: absolute; inset: 0 auto 0 0; border-radius: 3px;
+  background: linear-gradient(90deg, var(--loss), var(--gold));
+  width: 0; transition: width 1.3s cubic-bezier(.2,.8,.25,1);
+}
+.gnote { font-size: 13px; color: var(--ink-2); margin-top: 12px; }
+
+.checks { list-style: none; margin: 0; padding: 0; }
+.checks li {
+  display: flex; align-items: center; gap: 11px; padding: 9px 0;
+  border-bottom: 1px solid var(--line-2); font-size: 13.5px;
+}
+.checks li:last-child { border-bottom: 0; }
+.chk {
+  width: 15px; height: 15px; flex: none; border-radius: 2px;
+  display: grid; place-items: center; font-size: 9px;
+  font-family: var(--f-mono); font-weight: 600;
+}
+.chk.ok { background: var(--gain-dim); color: var(--gain); }
+.chk.no { background: var(--loss-dim); color: var(--loss); }
+.checks .nm { flex: 1; }
+.checks .vl {
+  font-family: var(--f-mono); font-size: 12px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 차트 ─────────────────────────────────────────── */
+.condgrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden;
+}
+.cond { background: var(--panel); padding: 15px 16px; }
+.cond .ck {
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 7px;
+}
+.cond .cv {
+  font-family: var(--f-mono); font-size: 18px; font-weight: 600;
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+.cond .cn { font-size: 11.5px; color: var(--ink-3); margin-top: 5px; line-height: 1.45; }
+.sellrow {
+  display: grid; grid-template-columns: 74px 1fr 78px; gap: 12px;
+  align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line-2);
+  font-size: 13px;
+}
+.sellrow:last-child { border-bottom: 0; }
+.sellrow .sp {
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  font-size: 14px; font-weight: 600;
+}
+.sellrow .sq { text-align: right; font-family: var(--f-mono); color: var(--ink-2); }
+.sellrow .sk { color: var(--ink-3); font-family: var(--f-mono); font-size: 11.5px; }
+.chartbox {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 20px 20px 12px; box-shadow: var(--shadow);
+}
+.ctrls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip {
+  font-family: var(--f-mono); font-size: 11px; letter-spacing: .07em;
+  padding: 6px 12px; border-radius: 2px; cursor: pointer;
+  background: transparent; color: var(--ink-3);
+  border: 1px solid var(--line); transition: all .16s;
+}
+.chip:hover { color: var(--ink-1); border-color: var(--ink-3); }
+.chip[aria-pressed="true"] { background: var(--ink-1); color: var(--ground); border-color: var(--ink-1); }
+.chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.csvg { width: 100%; height: auto; display: block; overflow: visible; }
+.legend {
+  display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px;
+  padding-top: 14px; border-top: 1px solid var(--line-2);
+  font-size: 12px; color: var(--ink-2);
+}
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.swatch { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.swatch.rung { width: 14px; height: 2px; border-radius: 0; }
+
+#tip {
+  position: fixed; z-index: 40; pointer-events: none; opacity: 0;
+  transition: opacity .12s; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 11px 13px; box-shadow: var(--shadow); font-size: 12.5px;
+  min-width: 168px; max-width: 260px;
+}
+#tip .tt {
+  font-family: var(--f-mono); font-size: 11px; color: var(--ink-3);
+  letter-spacing: .06em; margin-bottom: 6px;
+}
+#tip .tr { display: flex; justify-content: space-between; gap: 14px; padding: 2px 0; }
+#tip .tr b { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* ── 표 ─────────────────────────────────────────── */
+.tablewrap {
+  overflow-x: auto; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow);
+}
+table { border-collapse: collapse; width: 100%; min-width: 720px; }
+th, td {
+  padding: 10px 14px; text-align: right; font-size: 13px;
+  border-bottom: 1px solid var(--line-2); white-space: nowrap;
+}
+th {
+  position: sticky; top: 0; z-index: 2; background: var(--panel-2);
+  font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+  cursor: pointer; user-select: none;
+}
+th:hover { color: var(--ink-1); }
+th[aria-sort] { color: var(--gold); }
+th:first-child, td:first-child { text-align: left; }
+tbody tr { transition: background .14s; cursor: default; }
+tbody tr:hover, tbody tr.hot { background: var(--panel-2); }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.pill {
+  display: inline-block; font-family: var(--f-mono); font-size: 10px;
+  letter-spacing: .06em; padding: 2px 7px; border-radius: 2px;
+}
+.pill.w { background: var(--gain-dim); color: var(--gain); }
+.pill.l { background: var(--loss-dim); color: var(--loss); }
+.rsn { font-size: 11px; color: var(--ink-3); }
+
+/* ── 분해 막대 ─────────────────────────────────────── */
+.decomp { display: grid; gap: 14px; }
+.drow { display: grid; grid-template-columns: 88px 1fr 84px; gap: 14px; align-items: center; }
+.drow .dk { font-size: 13px; color: var(--ink-2); }
+.dbar { height: 22px; background: var(--panel-2); border-radius: 2px; position: relative; overflow: hidden; }
+.dbar i {
+  position: absolute; top: 0; bottom: 0; display: block; width: 0;
+  transition: width 1.1s cubic-bezier(.2,.8,.25,1); border-radius: 2px;
+}
+.drow .dv {
+  font-family: var(--f-mono); font-size: 13px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 검증 ─────────────────────────────────────────── */
+.folds { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; }
+.fold {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px;
+}
+.fold .fk { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-3); letter-spacing: .08em; }
+.fold .fv {
+  font-family: var(--f-mono); font-size: 21px; font-weight: 600;
+  margin-top: 6px; font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin-top: 28px; padding: 18px 20px; border-left: 2px solid var(--gold);
+  background: var(--gold-dim); border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 13.5px; color: var(--ink-2);
+}
+.note b { color: var(--ink-1); font-weight: 600; }
+
+footer {
+  margin-top: 80px; padding-top: 26px; border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--ink-3); display: flex;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+footer .mono { font-family: var(--f-mono); }
+
+/* ── 진입 연출 ─────────────────────────────────────── */
+.rise { opacity: 0; transform: translateY(14px); }
+.rise.in { opacity: 1; transform: none; transition: opacity .62s ease, transform .62s cubic-bezier(.2,.8,.25,1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .rise.in { opacity: 1; transform: none; transition: none; }
+  .fill, .dbar i { transition: none; }
+  .vbadge .dot { animation: none; }
+  .draw { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="tick">KORU</span>
+      <span class="sub">Direxion Daily MSCI South Korea Bull 3X · 원화 기준</span>
+    </div>
+    <button class="tbtn" id="theme" type="button">테마</button>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow" id="asof">— </div>
+    <h1>3년간 <em id="hN">0</em>번의<br>매수·매도 신호</h1>
+    <p class="lede">
+      원화 기준 분할 매수·분할 익절 전략이 낸 신호를 전부 기록했다.
+      누적 <b id="hTot">—</b>, 승률 <b id="hWr">—</b>,
+      손익비 <b id="hPf">—</b>. 최대 낙폭은 <b id="hMdd">—</b>에 그쳤다.
+      아래 표의 모든 수치는 수수료·환전 스프레드·슬리피지를 반영한 실측이다.
+    </p>
+
+    <div class="strip" id="strip"></div>
+  </header>
+
+  <section id="now">
+    <div class="shead"><span class="snum">01</span><h2>지금은 왜 신호가 없는가</h2></div>
+    <p class="sdesc">
+      진입은 8개 조건을 모두 통과해야 열린다. 지금 막고 있는 것은 하나뿐이다.
+    </p>
+    <div class="verdict">
+      <div class="card rise">
+        <div class="vbadge"><span class="dot"></span><span id="vtxt">판정</span></div>
+        <ul class="checks" id="checks"></ul>
+      </div>
+      <div class="card rise">
+        <div style="font-size:13px;color:var(--ink-2);margin-bottom:4px">추세 정배열까지</div>
+        <div class="gauge">
+          <div class="lbl"><span>EMA10</span><span>EMA30</span></div>
+          <div class="track"><i class="fill" id="gfill"></i></div>
+          <div class="lbl" style="margin-top:8px">
+            <span id="gEma10" class="mono">—</span><span id="gEma30" class="mono">—</span>
+          </div>
+        </div>
+        <p class="gnote" id="gnote">—</p>
+      </div>
+    </div>
+
+    <div class="card rise" style="margin-top:22px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;margin-bottom:16px">
+        <span style="font-size:15px;font-weight:600">다음 거래일에 신호가 나려면</span>
+        <span style="font-size:12.5px;color:var(--ink-3)">개장 <b id="nextOpen">—</b> · 아래 두 조건을 모두 만족해야 한다</span>
+      </div>
+      <div class="condgrid" id="cond"></div>
+      <p style="font-size:12.5px;color:var(--ink-3);margin:14px 0 0">
+        가격을 골라 사는 것이 아니다. 조건이 갖춰진 <b>다음 거래일 시가</b>에 1차를 산다.
+        아래 금액은 지금 종가 기준 예시이며, 실제 값은 신호가 난 종가로 다시 계산된다.
+      </p>
+    </div>
+
+    <div class="verdict" style="margin-top:22px">
+      <div class="card rise">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">사면 얼마에 파는가</div>
+        <p style="font-size:12.5px;color:var(--ink-3);margin:0 0 14px">
+          익절은 원화 수익률 기준이라 환율이 움직이면 목표가도 함께 움직인다.
+        </p>
+        <div id="selllist"></div>
+      </div>
+      <div class="card rise">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">분할 매수 계획</div>
+        <p style="font-size:12.5px;color:var(--ink-3);margin:0 0 14px">
+          1차만 바로 사고, 나머지는 <b>내려올 때</b> 산다. 그날 양봉일 때만 들어간다.
+        </p>
+        <div id="buylist"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="chart">
+    <div class="shead"><span class="snum">02</span><h2>신호 지도</h2></div>
+    <p class="sdesc">
+      회색 선은 주가, 점은 매매다. 위쪽 금색 가로선은 익절 계단 6단으로,
+      전략이 상승 구간을 어떻게 잘라 파는지를 보여준다.
+      점에 마우스를 올리면 그 매매의 상세가 나온다.
+    </p>
+    <div class="chartbox rise">
+      <div class="ctrls" role="group" aria-label="신호 필터">
+        <button class="chip" data-f="all" aria-pressed="true" type="button">전체</button>
+        <button class="chip" data-f="win" aria-pressed="false" type="button">수익 매매</button>
+        <button class="chip" data-f="loss" aria-pressed="false" type="button">손실 매매</button>
+        <button class="chip" data-f="big" aria-pressed="false" type="button">원화 +10% 이상</button>
+      </div>
+      <svg class="csvg" id="svg" viewBox="0 0 1000 380" preserveAspectRatio="none" role="img"
+           aria-label="KORU 주가와 매매 신호 위치"></svg>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--wave)"></i>주가(수정)</span>
+        <span><i class="swatch" style="background:var(--gain)"></i>수익 매매 진입</span>
+        <span><i class="swatch" style="background:var(--loss)"></i>손실 매매 진입</span>
+        <span><i class="swatch rung" style="background:var(--gold)"></i>익절 계단</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="ledger">
+    <div class="shead"><span class="snum">03</span><h2>매매 원장</h2></div>
+    <p class="sdesc">
+      전체 <span id="lN">—</span>건. 열 제목을 누르면 정렬된다.
+      원화 수익률은 달러 수익률과 환율 수익률의 곱이라, 셋을 나눠 적었다.
+    </p>
+    <div class="tablewrap rise">
+      <table id="tbl">
+        <thead><tr>
+          <th data-s="open" scope="col">진입일</th>
+          <th data-s="days" scope="col">보유</th>
+          <th data-s="entry" scope="col">진입가</th>
+          <th data-s="exit" scope="col">청산가</th>
+          <th data-s="usd" scope="col">달러</th>
+          <th data-s="fx" scope="col">환율</th>
+          <th data-s="krw" scope="col">원화</th>
+          <th data-s="pnl" scope="col">손익</th>
+          <th scope="col">청산 사유</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="decomp">
+    <div class="shead"><span class="snum">04</span><h2>무엇이 수익을 만들었나</h2></div>
+    <p class="sdesc">
+      원화 수익률 = 달러 수익률 × 환율 수익률 × 비용계수. 각 항목이 실제로 얼마를 기여했는지.
+    </p>
+    <div class="card rise">
+      <div class="decomp" id="dec"></div>
+    </div>
+  </section>
+
+  <section id="valid">
+    <div class="shead"><span class="snum">05</span><h2>이 결과를 믿어도 되는가</h2></div>
+    <p class="sdesc">
+      기간을 4등분해 각각 따로 검증했다. 한 구간에서만 벌었다면 우연이다.
+    </p>
+    <div class="folds rise" id="folds"></div>
+    <div class="note rise">
+      <b>부트스트랩 신뢰구간 <span id="ciTxt">—</span></b> — 매매 순서를 4,000번 무작위로 섞어
+      다시 계산한 결과다. 구간이 0을 포함하지 않으므로 우연으로 보기 어렵다.
+      다만 3년 표본은 2026년 6~7월의 −80% 폭락 하나에 크게 좌우된다.
+      그런 사건이 3년에 한 번 있었다는 사실 자체가 표본 크기 1이다.
+    </div>
+  </section>
+
+  <footer>
+    <span>KORU 원화 분할매매 · 백테스트 기준 · 실거래 기록 아님</span>
+    <span class="mono" id="foot">—</span>
+  </footer>
+</div>
+
+<div id="tip" role="tooltip" aria-hidden="true"></div>
+
+<script id="payload" type="application/json">{"symbol": "KORU", "generated": "2026-09-23", "summary": {"n": 79, "wins": 45, "winRate": 0.5696, "total": 0.2291, "pf": 1.9, "mdd": -0.0577, "sharpe": 1.2, "wfPos": 3, "wf": [0.0094, -0.0445, 0.0855, 0.1788], "ciLow": 0.0009, "ciHigh": 0.0297, "capital": 1000000.0, "avgDays": 1.8}, "ladder": [{"k": 0.05, "f": 0.24}, {"k": 0.07, "f": 0.2}, {"k": 0.1, "f": 0.18}, {"k": 0.13, "f": 0.16}, {"k": 0.16, "f": 0.12}, {"k": 0.2, "f": 0.1}], "current": {"price": 21.27, "fx": 1371.1, "ema10": 21.29, "ema30": 21.19, "atrPct": 0.1103, "adx": 12.9, "rsi": 50.4, "allowed": false, "blockers": ["추세방향"]}, "next": {"openKst": "09/24(목) 22:30", "thresholdClose": 21.29, "gapLow": 19.14, "gapHigh": 23.4, "lastClose": 21.27}, "plan": {"totalQty": 34, "tranches": [14, 12, 8], "notional": 994698, "stop": 18.72, "stopPct": 0.12, "scaleIn": [{"w": 0.4, "price": 21.27}, {"w": 0.35, "price": 19.63}, {"w": 0.25, "price": 17.99}], "tp": [{"k": 0.05, "f": 0.24, "price": 22.48}, {"k": 0.07, "f": 0.2, "price": 22.91}, {"k": 0.1, "f": 0.18, "price": 23.55}, {"k": 0.13, "f": 0.16, "price": 24.19}, {"k": 0.16, "f": 0.12, "price": 24.83}, {"k": 0.2, "f": 0.1, "price": 25.69}]}, "trades": [{"open": "2023-11-17", "close": "2023-11-21", "entry": 3.68, "exit": 3.8, "krw": 0.0277, "usd": 0.0335, "fx": 0.0008, "pnl": 10813, "days": 4.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2023-11-24", "close": "2023-11-27", "entry": 3.62, "exit": 3.7, "krw": 0.0159, "usd": 0.0206, "fx": 0.0018, "pnl": 6070, "days": 3.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2023-11-29", "close": "2023-11-30", "entry": 3.88, "exit": 3.77, "krw": -0.0271, "usd": -0.0271, "fx": 0.0064, "pnl": -10884, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2023-12-04", "close": "2023-12-05", "entry": 3.65, "exit": 3.5, "krw": -0.0424, "usd": -0.0403, "fx": 0.0043, "pnl": -16231, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2023-12-12", "close": "2023-12-13", "entry": 3.69, "exit": 3.88, "krw": 0.0309, "usd": 0.0521, "fx": -0.0138, "pnl": 12282, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2023-12-15", "close": "2023-12-18", "entry": 3.95, "exit": 3.95, "krw": 0.0017, "usd": -0.0003, "fx": 0.0085, "pnl": 666, "days": 3.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2023-12-20", "close": "2023-12-21", "entry": 4.09, "exit": 4.24, "krw": 0.0259, "usd": 0.0368, "fx": -0.0041, "pnl": 10344, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2023-12-26", "close": "2023-12-27", "entry": 4.23, "exit": 4.37, "krw": 0.0271, "usd": 0.0331, "fx": 0.0006, "pnl": 10862, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2023-12-29", "close": "2024-01-02", "entry": 4.49, "exit": 4.34, "krw": -0.0174, "usd": -0.0336, "fx": 0.0233, "pnl": -6815, "days": 4.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2024-02-08", "close": "2024-02-09", "entry": 3.92, "exit": 3.98, "krw": 0.0091, "usd": 0.0156, "fx": 0.0, "pnl": 3614, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2024-02-13", "close": "2024-02-14", "entry": 3.84, "exit": 4.0, "krw": 0.0216, "usd": 0.0397, "fx": -0.011, "pnl": 8036, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2024-02-20", "close": "2024-02-21", "entry": 4.06, "exit": 4.07, "krw": -0.004, "usd": 0.0031, "fx": -0.0007, "pnl": -1620, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2024-02-23", "close": "2024-02-26", "entry": 4.19, "exit": 4.05, "krw": -0.0376, "usd": -0.0347, "fx": 0.0034, "pnl": -14909, "days": 3.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2024-02-29", "close": "2024-03-01", "entry": 4.05, "exit": 4.19, "krw": 0.0285, "usd": 0.0352, "fx": 0.0, "pnl": 11445, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2024-03-22", "close": "2024-03-25", "entry": 4.54, "exit": 4.64, "krw": 0.0175, "usd": 0.0207, "fx": 0.0033, "pnl": 6829, "days": 3.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2024-03-27", "close": "2024-03-28", "entry": 4.59, "exit": 4.53, "krw": -0.0194, "usd": -0.013, "fx": 0.0, "pnl": -7834, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2024-05-09", "close": "2024-05-10", "entry": 3.97, "exit": 3.96, "krw": -0.0103, "usd": -0.0039, "fx": 0.0, "pnl": -3943, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2024-08-26", "close": "2024-08-27", "entry": 3.92, "exit": 3.86, "krw": -0.0228, "usd": -0.0163, "fx": -0.0002, "pnl": -8810, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2024-09-30", "close": "2024-10-01", "entry": 3.46, "exit": 3.26, "krw": -0.0554, "usd": -0.056, "fx": 0.0072, "pnl": -20458, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-01-23", "close": "2025-01-24", "entry": 2.16, "exit": 2.2, "krw": 0.0124, "usd": 0.019, "fx": 0.0, "pnl": 4790, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-01-31", "close": "2025-02-03", "entry": 2.06, "exit": 1.84, "krw": -0.1041, "usd": -0.109, "fx": 0.0121, "pnl": -40411, "days": 3.0, "reasons": ["HARD_STOP_USD"], "win": false}, {"open": "2025-02-20", "close": "2025-02-21", "entry": 2.45, "exit": 2.36, "krw": -0.0437, "usd": -0.0375, "fx": 0.0, "pnl": -17405, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-02-25", "close": "2025-02-26", "entry": 2.36, "exit": 2.39, "krw": 0.0106, "usd": 0.0137, "fx": 0.0034, "pnl": 4245, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-03-19", "close": "2025-03-20", "entry": 2.24, "exit": 2.2, "krw": -0.0097, "usd": -0.0185, "fx": 0.0155, "pnl": -3870, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-03-25", "close": "2025-03-26", "entry": 2.24, "exit": 2.2, "krw": -0.0183, "usd": -0.0143, "fx": 0.0025, "pnl": -7139, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-05-01", "close": "2025-05-05", "entry": 2.03, "exit": 2.23, "krw": 0.0655, "usd": 0.0987, "fx": -0.0239, "pnl": 26399, "days": 4.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2025-05-07", "close": "2025-05-08", "entry": 2.21, "exit": 2.11, "krw": -0.0453, "usd": -0.0436, "fx": 0.0047, "pnl": -18079, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-05-13", "close": "2025-05-15", "entry": 2.15, "exit": 2.29, "krw": 0.0462, "usd": 0.0655, "fx": -0.0117, "pnl": 17940, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2025-05-19", "close": "2025-05-20", "entry": 2.22, "exit": 2.24, "krw": 0.0039, "usd": 0.0074, "fx": 0.003, "pnl": 1500, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-05-22", "close": "2025-05-23", "entry": 2.23, "exit": 2.29, "krw": 0.0222, "usd": 0.0288, "fx": 0.0, "pnl": 8564, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-05-30", "close": "2025-06-02", "entry": 2.51, "exit": 2.62, "krw": 0.0395, "usd": 0.0419, "fx": 0.0041, "pnl": 14995, "days": 3.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-06-06", "close": "2025-06-10", "entry": 3.08, "exit": 3.21, "krw": 0.0421, "usd": 0.0436, "fx": 0.0051, "pnl": 16741, "days": 4.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2025-06-17", "close": "2025-06-18", "entry": 3.38, "exit": 3.42, "krw": -0.0026, "usd": 0.0111, "fx": -0.0071, "pnl": -1006, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-06-23", "close": "2025-06-25", "entry": 3.45, "exit": 3.96, "krw": 0.1337, "usd": 0.1461, "fx": -0.0044, "pnl": 51690, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2025-06-27", "close": "2025-06-30", "entry": 3.87, "exit": 4.0, "krw": 0.0226, "usd": 0.0325, "fx": -0.0031, "pnl": 8659, "days": 3.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-07-02", "close": "2025-07-07", "entry": 3.91, "exit": 3.8, "krw": -0.0212, "usd": -0.0258, "fx": 0.0113, "pnl": -8312, "days": 5.0, "reasons": ["TAKE_PROFIT_LADDER", "BREAKEVEN_STOP"], "win": false}, {"open": "2025-07-09", "close": "2025-07-10", "entry": 4.0, "exit": 4.18, "krw": 0.0377, "usd": 0.0447, "fx": -0.0003, "pnl": 15166, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-07-15", "close": "2025-07-16", "entry": 4.2, "exit": 4.16, "krw": -0.0166, "usd": -0.0092, "fx": -0.0011, "pnl": -6710, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-07-18", "close": "2025-07-21", "entry": 4.13, "exit": 4.28, "krw": 0.0229, "usd": 0.0368, "fx": -0.007, "pnl": 9109, "days": 3.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-07-24", "close": "2025-07-25", "entry": 4.24, "exit": 4.16, "krw": -0.0235, "usd": -0.0171, "fx": 0.0, "pnl": -9308, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-07-30", "close": "2025-07-31", "entry": 4.21, "exit": 4.08, "krw": -0.0378, "usd": -0.0309, "fx": -0.0007, "pnl": -15136, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-08-06", "close": "2025-08-07", "entry": 4.05, "exit": 4.16, "krw": 0.0215, "usd": 0.0277, "fx": 0.0004, "pnl": 8459, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-08-11", "close": "2025-08-12", "entry": 4.12, "exit": 4.26, "krw": 0.0222, "usd": 0.0338, "fx": -0.0048, "pnl": 8785, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-08-14", "close": "2025-08-15", "entry": 4.19, "exit": 4.13, "krw": -0.0205, "usd": -0.0141, "fx": 0.0, "pnl": -7885, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-08-25", "close": "2025-08-26", "entry": 4.07, "exit": 3.94, "krw": -0.0344, "usd": -0.0315, "fx": 0.0035, "pnl": -13442, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-08-29", "close": "2025-09-02", "entry": 3.91, "exit": 3.85, "krw": -0.0156, "usd": -0.0164, "fx": 0.0073, "pnl": -5842, "days": 4.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-09-17", "close": "2025-09-18", "entry": 5.2, "exit": 5.39, "krw": 0.0351, "usd": 0.0358, "fx": 0.0058, "pnl": 13637, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-09-23", "close": "2025-09-24", "entry": 5.55, "exit": 5.22, "krw": -0.0576, "usd": -0.0595, "fx": 0.0085, "pnl": -23216, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-09-26", "close": "2025-09-26", "entry": 4.92, "exit": 4.99, "krw": 0.0083, "usd": 0.0149, "fx": 0.0, "pnl": 3132, "days": 0.0, "reasons": ["TREND_BREAK"], "win": true}, {"open": "2025-09-30", "close": "2025-10-06", "entry": 5.15, "exit": 5.79, "krw": 0.1176, "usd": 0.1237, "fx": 0.001, "pnl": 46051, "days": 6.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2025-10-08", "close": "2025-10-09", "entry": 5.82, "exit": 5.86, "krw": 0.0008, "usd": 0.008, "fx": -0.0007, "pnl": 328, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-10-14", "close": "2025-10-16", "entry": 5.46, "exit": 6.26, "krw": 0.1304, "usd": 0.145, "fx": -0.0064, "pnl": 48025, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2025-10-21", "close": "2025-10-22", "entry": 7.08, "exit": 7.08, "krw": -0.0065, "usd": 0.0002, "fx": -0.0002, "pnl": -2508, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-10-28", "close": "2025-10-30", "entry": 8.03, "exit": 8.8, "krw": 0.0879, "usd": 0.0964, "fx": -0.0014, "pnl": 34310, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER", "TRAILING_STOP"], "win": true}, {"open": "2025-11-06", "close": "2025-11-07", "entry": 8.1, "exit": 7.3, "krw": -0.1049, "usd": -0.0991, "fx": -0.0, "pnl": -38276, "days": 1.0, "reasons": ["HARD_STOP_KRW"], "win": false}, {"open": "2025-11-13", "close": "2025-11-14", "entry": 8.45, "exit": 7.51, "krw": -0.1175, "usd": -0.1118, "fx": 0.0, "pnl": -46817, "days": 1.0, "reasons": ["HARD_STOP_KRW"], "win": false}, {"open": "2025-12-09", "close": "2025-12-10", "entry": 8.07, "exit": 8.47, "krw": 0.0432, "usd": 0.0491, "fx": 0.0008, "pnl": 17438, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2025-12-12", "close": "2025-12-15", "entry": 7.93, "exit": 7.43, "krw": -0.0713, "usd": -0.0632, "fx": -0.0023, "pnl": -28397, "days": 3.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2025-12-23", "close": "2025-12-30", "entry": 7.69, "exit": 8.75, "krw": 0.1128, "usd": 0.1383, "fx": -0.0161, "pnl": 45032, "days": 7.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2026-01-07", "close": "2026-01-08", "entry": 12.08, "exit": 11.8, "krw": -0.0267, "usd": -0.023, "fx": 0.0027, "pnl": -10276, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2026-01-12", "close": "2026-01-13", "entry": 12.08, "exit": 12.05, "krw": -0.0036, "usd": -0.0027, "fx": 0.0055, "pnl": -1404, "days": 1.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2026-01-16", "close": "2026-01-20", "entry": 13.29, "exit": 13.19, "krw": -0.008, "usd": -0.0076, "fx": 0.0061, "pnl": -3115, "days": 4.0, "reasons": ["TIME_STOP"], "win": false}, {"open": "2026-02-02", "close": "2026-02-04", "entry": 15.87, "exit": 18.34, "krw": 0.1451, "usd": 0.1554, "fx": -0.0025, "pnl": 53713, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2026-02-09", "close": "2026-02-10", "entry": 17.9, "exit": 18.29, "krw": 0.0137, "usd": 0.0219, "fx": -0.0016, "pnl": 5376, "days": 1.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2026-02-12", "close": "2026-02-13", "entry": 20.7, "exit": 22.3, "krw": 0.0703, "usd": 0.0773, "fx": 0.0, "pnl": 27365, "days": 1.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2026-02-18", "close": "2026-02-20", "entry": 20.88, "exit": 23.73, "krw": 0.1338, "usd": 0.1364, "fx": 0.0041, "pnl": 52457, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2026-02-26", "close": "2026-02-27", "entry": 30.19, "exit": 32.01, "krw": 0.0536, "usd": 0.0604, "fx": 0.0, "pnl": 20928, "days": 1.0, "reasons": ["TAKE_PROFIT_LADDER", "TRAILING_STOP"], "win": true}, {"open": "2026-04-15", "close": "2026-04-17", "entry": 22.12, "exit": 25.4, "krw": 0.1441, "usd": 0.1485, "fx": 0.0026, "pnl": 56557, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2026-04-21", "close": "2026-04-23", "entry": 24.73, "exit": 25.51, "krw": 0.0201, "usd": 0.0314, "fx": -0.0046, "pnl": 8164, "days": 2.0, "reasons": ["TAKE_PROFIT_LADDER", "BREAKEVEN_STOP"], "win": true}, {"open": "2026-04-28", "close": "2026-05-01", "entry": 25.94, "exit": 29.5, "krw": 0.1335, "usd": 0.1374, "fx": 0.003, "pnl": 51148, "days": 3.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2026-05-12", "close": "2026-05-12", "entry": 40.8, "exit": 36.9, "krw": -0.1014, "usd": -0.0956, "fx": 0.0, "pnl": -30967, "days": 0.0, "reasons": ["HARD_STOP_KRW"], "win": false}, {"open": "2026-05-15", "close": "2026-05-18", "entry": 37.5, "exit": 33.94, "krw": -0.1014, "usd": -0.0949, "fx": -0.0007, "pnl": -34163, "days": 3.0, "reasons": ["HARD_STOP_KRW"], "win": false}, {"open": "2026-05-22", "close": "2026-05-26", "entry": 41.71, "exit": 50.26, "krw": 0.1982, "usd": 0.2051, "fx": 0.0007, "pnl": 74852, "days": 4.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2026-05-28", "close": "2026-05-29", "entry": 48.47, "exit": 54.91, "krw": 0.1258, "usd": 0.133, "fx": 0.0, "pnl": 45718, "days": 1.0, "reasons": ["TAKE_PROFIT_LADDER", "TIME_STOP"], "win": true}, {"open": "2026-06-02", "close": "2026-06-03", "entry": 58.58, "exit": 59.75, "krw": 0.0225, "usd": 0.02, "fx": 0.0089, "pnl": 8016, "days": 1.0, "reasons": ["TIME_STOP"], "win": true}, {"open": "2026-06-17", "close": "2026-06-18", "entry": 46.02, "exit": 52.27, "krw": 0.1333, "usd": 0.1358, "fx": 0.0042, "pnl": 56325, "days": 1.0, "reasons": ["TAKE_PROFIT_LADDER"], "win": true}, {"open": "2026-06-23", "close": "2026-06-24", "entry": 35.53, "exit": 39.51, "krw": 0.1063, "usd": 0.1121, "fx": 0.0011, "pnl": 23255, "days": 1.0, "reasons": ["TAKE_PROFIT_LADDER", "TRAILING_STOP"], "win": true}, {"open": "2026-09-09", "close": "2026-09-10", "entry": 23.88, "exit": 22.39, "krw": -0.0639, "usd": -0.0624, "fx": 0.0048, "pnl": -24603, "days": 1.0, "reasons": ["TAKE_PROFIT_LADDER", "HARD_STOP_KRW"], "win": false}, {"open": "2026-09-23", "close": "2026-09-23", "entry": 22.42, "exit": 21.24, "krw": -0.0588, "usd": -0.0527, "fx": 0.0, "pnl": -21757, "days": 0.0, "reasons": ["END_OF_BACKTEST"], "win": false}], "price": [{"d": "2023-09-25", "c": 3.58, "fx": 1338.4}, {"d": "2023-09-26", "c": 3.22, "fx": 1353.8}, {"d": "2023-09-27", "c": 3.24, "fx": 1352.8}, {"d": "2023-09-28", "c": 3.33, "fx": 1347.8}, {"d": "2023-09-29", "c": 3.27, "fx": 1347.8}, {"d": "2023-10-02", "c": 3.19, "fx": 1354.2}, {"d": "2023-10-03", "c": 3.09, "fx": 1359.2}, {"d": "2023-10-04", "c": 3.07, "fx": 1351.2}, {"d": "2023-10-05", "c": 3.1, "fx": 1346.1}, {"d": "2023-10-06", "c": 3.2, "fx": 1346.1}, {"d": "2023-10-09", "c": 3.18, "fx": 1346.9}, {"d": "2023-10-10", "c": 3.19, "fx": 1341.9}, {"d": "2023-10-11", "c": 3.35, "fx": 1338.3}, {"d": "2023-10-12", "c": 3.27, "fx": 1348.3}, {"d": "2023-10-13", "c": 3.21, "fx": 1348.3}, {"d": "2023-10-16", "c": 3.26, "fx": 1347.8}, {"d": "2023-10-17", "c": 3.26, "fx": 1353.0}, {"d": "2023-10-18", "c": 3.17, "fx": 1354.6}, {"d": "2023-10-19", "c": 3.03, "fx": 1356.2}, {"d": "2023-10-20", "c": 2.91, "fx": 1356.2}, {"d": "2023-10-23", "c": 2.94, "fx": 1334.4}, {"d": "2023-10-24", "c": 3.05, "fx": 1343.6}, {"d": "2023-10-25", "c": 2.82, "fx": 1352.7}, {"d": "2023-10-26", "c": 2.63, "fx": 1350.3}, {"d": "2023-10-27", "c": 2.56, "fx": 1350.3}, {"d": "2023-10-30", "c": 2.74, "fx": 1348.1}, {"d": "2023-10-31", "c": 2.59, "fx": 1350.2}, {"d": "2023-11-01", "c": 2.78, "fx": 1347.8}, {"d": "2023-11-02", "c": 3.04, "fx": 1333.7}, {"d": "2023-11-03", "c": 3.29, "fx": 1333.7}, {"d": "2023-11-06", "c": 3.79, "fx": 1297.1}, {"d": "2023-11-07", "c": 3.61, "fx": 1304.6}, {"d": "2023-11-08", "c": 3.39, "fx": 1308.1}, {"d": "2023-11-09", "c": 3.29, "fx": 1315.2}, {"d": "2023-11-10", "c": 3.36, "fx": 1315.2}, {"d": "2023-11-13", "c": 3.25, "fx": 1319.1}, {"d": "2023-11-14", "c": 3.61, "fx": 1304.2}, {"d": "2023-11-15", "c": 3.69, "fx": 1301.9}, {"d": "2023-11-16", "c": 3.76, "fx": 1292.4}, {"d": "2023-11-17", "c": 3.67, "fx": 1292.4}, {"d": "2023-11-20", "c": 3.88, "fx": 1288.2}, {"d": "2023-11-21", "c": 3.78, "fx": 1295.2}, {"d": "2023-11-22", "c": 3.78, "fx": 1298.8}, {"d": "2023-11-24", "c": 3.66, "fx": 1300.2}, {"d": "2023-11-27", "c": 3.71, "fx": 1302.5}, {"d": "2023-11-28", "c": 3.87, "fx": 1287.5}, {"d": "2023-11-29", "c": 3.85, "fx": 1288.4}, {"d": "2023-11-30", "c": 3.78, "fx": 1296.7}, {"d": "2023-12-01", "c": 3.83, "fx": 1296.7}, {"d": "2023-12-04", "c": 3.6, "fx": 1307.8}, {"d": "2023-12-05", "c": 3.51, "fx": 1313.4}, {"d": "2023-12-06", "c": 3.45, "fx": 1313.7}, {"d": "2023-12-07", "c": 3.55, "fx": 1312.8}, {"d": "2023-12-08", "c": 3.61, "fx": 1312.8}, {"d": "2023-12-11", "c": 3.71, "fx": 1313.6}, {"d": "2023-12-12", "c": 3.76, "fx": 1310.1}, {"d": "2023-12-13", "c": 3.89, "fx": 1292.0}, {"d": "2023-12-14", "c": 4.04, "fx": 1291.9}, {"d": "2023-12-15", "c": 3.89, "fx": 1291.9}, {"d": "2023-12-18", "c": 3.96, "fx": 1302.9}, {"d": "2023-12-19", "c": 4.08, "fx": 1297.8}, {"d": "2023-12-20", "c": 4.06, "fx": 1297.0}, {"d": "2023-12-21", "c": 4.25, "fx": 1291.7}, {"d": "2023-12-22", "c": 4.22, "fx": 1291.7}, {"d": "2023-12-26", "c": 4.26, "fx": 1293.9}, {"d": "2023-12-27", "c": 4.38, "fx": 1294.8}, {"d": "2023-12-28", "c": 4.61, "fx": 1277.8}, {"d": "2023-12-29", "c": 4.51, "fx": 1277.8}, {"d": "2024-01-02", "c": 4.34, "fx": 1307.6}, {"d": "2024-01-03", "c": 4.07, "fx": 1309.5}, {"d": "2024-01-04", "c": 3.94, "fx": 1311.2}, {"d": "2024-01-05", "c": 3.97, "fx": 1311.2}, {"d": "2024-01-08", "c": 4.03, "fx": 1311.8}, {"d": "2024-01-09", "c": 3.76, "fx": 1319.8}, {"d": "2024-01-10", "c": 3.69, "fx": 1317.5}, {"d": "2024-01-11", "c": 3.7, "fx": 1312.0}, {"d": "2024-01-12", "c": 3.67, "fx": 1312.0}, {"d": "2024-01-16", "c": 3.25, "fx": 1337.8}, {"d": "2024-01-17", "c": 2.99, "fx": 1344.1}, {"d": "2024-01-18", "c": 3.16, "fx": 1337.7}, {"d": "2024-01-19", "c": 3.27, "fx": 1337.7}, {"d": "2024-01-22", "c": 3.15, "fx": 1338.7}, {"d": "2024-01-23", "c": 3.21, "fx": 1336.8}, {"d": "2024-01-24", "c": 3.25, "fx": 1329.9}, {"d": "2024-01-25", "c": 3.2, "fx": 1336.0}, {"d": "2024-01-26", "c": 3.3, "fx": 1336.0}, {"d": "2024-01-29", "c": 3.42, "fx": 1333.2}, {"d": "2024-01-30", "c": 3.38, "fx": 1326.6}, {"d": "2024-01-31", "c": 3.29, "fx": 1333.9}, {"d": "2024-02-01", "c": 3.58, "fx": 1328.9}, {"d": "2024-02-02", "c": 3.81, "fx": 1328.9}, {"d": "2024-02-05", "c": 3.71, "fx": 1333.4}, {"d": "2024-02-06", "c": 3.74, "fx": 1326.8}, {"d": "2024-02-07", "c": 3.92, "fx": 1327.6}, {"d": "2024-02-08", "c": 3.93, "fx": 1331.5}, {"d": "2024-02-09", "c": 3.99, "fx": 1331.5}, {"d": "2024-02-12", "c": 4.15, "fx": 1328.5}, {"d": "2024-02-13", "c": 3.8, "fx": 1340.8}, {"d": "2024-02-14", "c": 4.0, "fx": 1326.0}, {"d": "2024-02-15", "c": 3.99, "fx": 1327.7}, {"d": "2024-02-16", "c": 4.05, "fx": 1327.7}, {"d": "2024-02-20", "c": 4.08, "fx": 1333.8}, {"d": "2024-02-21", "c": 4.08, "fx": 1332.9}, {"d": "2024-02-22", "c": 4.24, "fx": 1327.2}, {"d": "2024-02-23", "c": 4.23, "fx": 1327.2}, {"d": "2024-02-26", "c": 4.05, "fx": 1331.7}, {"d": "2024-02-27", "c": 3.95, "fx": 1331.8}, {"d": "2024-02-28", "c": 4.04, "fx": 1333.4}, {"d": "2024-02-29", "c": 4.03, "fx": 1335.2}, {"d": "2024-03-01", "c": 4.2, "fx": 1335.2}, {"d": "2024-03-04", "c": 4.31, "fx": 1328.9}, {"d": "2024-03-05", "c": 4.06, "fx": 1333.4}, {"d": "2024-03-06", "c": 4.21, "fx": 1327.1}, {"d": "2024-03-07", "c": 4.33, "fx": 1321.2}, {"d": "2024-03-08", "c": 4.41, "fx": 1321.2}, {"d": "2024-03-11", "c": 4.41, "fx": 1310.5}, {"d": "2024-03-12", "c": 4.61, "fx": 1311.2}, {"d": "2024-03-13", "c": 4.58, "fx": 1313.7}, {"d": "2024-03-14", "c": 4.58, "fx": 1321.9}, {"d": "2024-03-15", "c": 4.28, "fx": 1321.9}, {"d": "2024-03-18", "c": 4.3, "fx": 1336.1}, {"d": "2024-03-19", "c": 4.2, "fx": 1337.0}, {"d": "2024-03-20", "c": 4.5, "fx": 1330.1}, {"d": "2024-03-21", "c": 4.66, "fx": 1334.7}, {"d": "2024-03-22", "c": 4.54, "fx": 1334.7}, {"d": "2024-03-25", "c": 4.64, "fx": 1339.1}, {"d": "2024-03-26", "c": 4.61, "fx": 1343.1}, {"d": "2024-03-27", "c": 4.59, "fx": 1349.8}, {"d": "2024-03-28", "c": 4.54, "fx": 1349.8}, {"d": "2024-04-01", "c": 4.45, "fx": 1355.5}, {"d": "2024-04-02", "c": 4.44, "fx": 1350.7}, {"d": "2024-04-03", "c": 4.41, "fx": 1344.8}, {"d": "2024-04-04", "c": 4.34, "fx": 1351.4}, {"d": "2024-04-05", "c": 4.32, "fx": 1351.4}, {"d": "2024-04-08", "c": 4.35, "fx": 1354.2}, {"d": "2024-04-09", "c": 4.27, "fx": 1348.5}, {"d": "2024-04-10", "c": 3.79, "fx": 1363.8}, {"d": "2024-04-11", "c": 4.07, "fx": 1367.8}, {"d": "2024-04-12", "c": 3.63, "fx": 1367.8}, {"d": "2024-04-15", "c": 3.57, "fx": 1387.7}, {"d": "2024-04-16", "c": 3.41, "fx": 1387.3}, {"d": "2024-04-17", "c": 3.32, "fx": 1379.5}, {"d": "2024-04-18", "c": 3.47, "fx": 1379.4}, {"d": "2024-04-19", "c": 3.4, "fx": 1379.4}, {"d": "2024-04-22", "c": 3.62, "fx": 1378.8}, {"d": "2024-04-23", "c": 3.67, "fx": 1370.5}, {"d": "2024-04-24", "c": 3.7, "fx": 1377.0}, {"d": "2024-04-25", "c": 3.65, "fx": 1371.7}, {"d": "2024-04-26", "c": 3.72, "fx": 1371.7}, {"d": "2024-04-29", "c": 3.84, "fx": 1374.6}, {"d": "2024-04-30", "c": 3.66, "fx": 1385.5}, {"d": "2024-05-01", "c": 3.66, "fx": 1375.0}, {"d": "2024-05-02", "c": 3.9, "fx": 1364.6}, {"d": "2024-05-03", "c": 4.02, "fx": 1364.6}, {"d": "2024-05-06", "c": 4.14, "fx": 1352.2}, {"d": "2024-05-07", "c": 4.12, "fx": 1357.7}, {"d": "2024-05-08", "c": 4.14, "fx": 1361.9}, {"d": "2024-05-09", "c": 4.0, "fx": 1365.4}, {"d": "2024-05-10", "c": 3.97, "fx": 1365.4}, {"d": "2024-05-13", "c": 3.99, "fx": 1363.8}, {"d": "2024-05-14", "c": 4.09, "fx": 1362.6}, {"d": "2024-05-15", "c": 4.34, "fx": 1353.6}, {"d": "2024-05-16", "c": 4.23, "fx": 1346.0}, {"d": "2024-05-17", "c": 4.05, "fx": 1346.0}, {"d": "2024-05-20", "c": 4.02, "fx": 1360.2}, {"d": "2024-05-21", "c": 3.94, "fx": 1363.4}, {"d": "2024-05-22", "c": 3.89, "fx": 1365.8}, {"d": "2024-05-23", "c": 3.76, "fx": 1367.6}, {"d": "2024-05-24", "c": 3.8, "fx": 1367.6}, {"d": "2024-05-28", "c": 3.91, "fx": 1362.8}, {"d": "2024-05-29", "c": 3.62, "fx": 1370.6}, {"d": "2024-05-30", "c": 3.5, "fx": 1375.6}, {"d": "2024-05-31", "c": 3.45, "fx": 1375.6}, {"d": "2024-06-03", "c": 3.62, "fx": 1370.8}, {"d": "2024-06-04", "c": 3.58, "fx": 1373.7}, {"d": "2024-06-05", "c": 3.78, "fx": 1368.7}, {"d": "2024-06-06", "c": 3.86, "fx": 1365.2}, {"d": "2024-06-07", "c": 3.69, "fx": 1365.2}, {"d": "2024-06-10", "c": 3.76, "fx": 1374.0}, {"d": "2024-06-11", "c": 3.7, "fx": 1377.4}, {"d": "2024-06-12", "c": 3.96, "fx": 1370.4}, {"d": "2024-06-13", "c": 3.87, "fx": 1373.7}, {"d": "2024-06-14", "c": 3.81, "fx": 1373.7}, {"d": "2024-06-17", "c": 3.91, "fx": 1379.1}, {"d": "2024-06-18", "c": 3.99, "fx": 1378.6}, {"d": "2024-06-20", "c": 3.95, "fx": 1391.8}, {"d": "2024-06-21", "c": 3.89, "fx": 1391.8}, {"d": "2024-06-24", "c": 3.87, "fx": 1386.1}, {"d": "2024-06-25", "c": 3.88, "fx": 1390.9}, {"d": "2024-06-26", "c": 3.92, "fx": 1393.4}, {"d": "2024-06-27", "c": 4.01, "fx": 1386.9}, {"d": "2024-06-28", "c": 4.07, "fx": 1386.9}, {"d": "2024-07-01", "c": 4.07, "fx": 1383.4}, {"d": "2024-07-02", "c": 4.07, "fx": 1383.4}, {"d": "2024-07-03", "c": 4.2, "fx": 1385.8}, {"d": "2024-07-05", "c": 4.59, "fx": 1380.2}, {"d": "2024-07-08", "c": 4.45, "fx": 1382.8}, {"d": "2024-07-09", "c": 4.43, "fx": 1382.4}, {"d": "2024-07-10", "c": 4.55, "fx": 1383.0}, {"d": "2024-07-11", "c": 4.55, "fx": 1371.3}, {"d": "2024-07-12", "c": 4.53, "fx": 1371.3}, {"d": "2024-07-15", "c": 4.33, "fx": 1383.7}, {"d": "2024-07-16", "c": 4.43, "fx": 1382.6}, {"d": "2024-07-17", "c": 4.2, "fx": 1378.7}, {"d": "2024-07-18", "c": 3.99, "fx": 1385.2}, {"d": "2024-07-19", "c": 3.87, "fx": 1385.2}, {"d": "2024-07-22", "c": 3.96, "fx": 1387.1}, {"d": "2024-07-23", "c": 3.91, "fx": 1384.6}, {"d": "2024-07-24", "c": 3.74, "fx": 1382.7}, {"d": "2024-07-25", "c": 3.65, "fx": 1381.4}, {"d": "2024-07-26", "c": 3.81, "fx": 1381.4}, {"d": "2024-07-29", "c": 3.81, "fx": 1381.4}, {"d": "2024-07-30", "c": 3.72, "fx": 1383.5}, {"d": "2024-07-31", "c": 4.06, "fx": 1367.9}, {"d": "2024-08-01", "c": 3.84, "fx": 1369.0}, {"d": "2024-08-02", "c": 3.52, "fx": 1369.0}, {"d": "2024-08-05", "c": 2.95, "fx": 1367.4}, {"d": "2024-08-06", "c": 2.85, "fx": 1370.3}, {"d": "2024-08-07", "c": 2.92, "fx": 1375.3}, {"d": "2024-08-08", "c": 3.14, "fx": 1373.8}, {"d": "2024-08-09", "c": 3.25, "fx": 1373.8}, {"d": "2024-08-12", "c": 3.26, "fx": 1369.5}, {"d": "2024-08-13", "c": 3.46, "fx": 1362.2}, {"d": "2024-08-14", "c": 3.48, "fx": 1355.7}, {"d": "2024-08-15", "c": 3.59, "fx": 1363.5}, {"d": "2024-08-16", "c": 3.77, "fx": 1363.5}, {"d": "2024-08-19", "c": 3.9, "fx": 1330.9}, {"d": "2024-08-20", "c": 3.92, "fx": 1327.6}, {"d": "2024-08-21", "c": 3.92, "fx": 1333.7}, {"d": "2024-08-22", "c": 3.72, "fx": 1339.5}, {"d": "2024-08-23", "c": 4.04, "fx": 1339.5}, {"d": "2024-08-26", "c": 3.85, "fx": 1326.6}, {"d": "2024-08-27", "c": 3.86, "fx": 1326.4}, {"d": "2024-08-28", "c": 3.74, "fx": 1336.7}, {"d": "2024-08-29", "c": 3.72, "fx": 1332.9}, {"d": "2024-08-30", "c": 3.72, "fx": 1332.9}, {"d": "2024-09-03", "c": 3.35, "fx": 1340.4}, {"d": "2024-09-04", "c": 3.34, "fx": 1331.0}, {"d": "2024-09-05", "c": 3.29, "fx": 1332.8}, {"d": "2024-09-06", "c": 2.92, "fx": 1332.8}, {"d": "2024-09-09", "c": 3.07, "fx": 1341.3}, {"d": "2024-09-10", "c": 3.01, "fx": 1343.3}, {"d": "2024-09-11", "c": 3.06, "fx": 1339.2}, {"d": "2024-09-12", "c": 3.2, "fx": 1335.7}, {"d": "2024-09-13", "c": 3.32, "fx": 1335.7}, {"d": "2024-09-16", "c": 3.34, "fx": 1319.1}, {"d": "2024-09-17", "c": 3.31, "fx": 1322.9}, {"d": "2024-09-18", "c": 3.3, "fx": 1322.3}, {"d": "2024-09-19", "c": 3.41, "fx": 1327.6}, {"d": "2024-09-20", "c": 3.29, "fx": 1327.6}, {"d": "2024-09-23", "c": 3.36, "fx": 1333.6}, {"d": "2024-09-24", "c": 3.57, "fx": 1324.9}, {"d": "2024-09-25", "c": 3.31, "fx": 1335.1}, {"d": "2024-09-26", "c": 3.86, "fx": 1313.3}, {"d": "2024-09-27", "c": 3.74, "fx": 1313.3}, {"d": "2024-09-30", "c": 3.35, "fx": 1315.3}, {"d": "2024-10-01", "c": 3.27, "fx": 1324.8}, {"d": "2024-10-02", "c": 3.25, "fx": 1324.0}, {"d": "2024-10-03", "c": 3.15, "fx": 1334.4}, {"d": "2024-10-04", "c": 3.14, "fx": 1334.4}, {"d": "2024-10-07", "c": 3.19, "fx": 1342.4}, {"d": "2024-10-08", "c": 3.24, "fx": 1341.3}, {"d": "2024-10-09", "c": 3.26, "fx": 1343.0}, {"d": "2024-10-10", "c": 3.24, "fx": 1349.7}, {"d": "2024-10-11", "c": 3.25, "fx": 1349.7}, {"d": "2024-10-14", "c": 3.27, "fx": 1357.3}, {"d": "2024-10-15", "c": 3.05, "fx": 1363.2}, {"d": "2024-10-16", "c": 3.15, "fx": 1364.2}, {"d": "2024-10-17", "c": 3.07, "fx": 1370.1}, {"d": "2024-10-18", "c": 3.03, "fx": 1370.1}, {"d": "2024-10-21", "c": 2.95, "fx": 1376.5}, {"d": "2024-10-22", "c": 2.85, "fx": 1376.6}, {"d": "2024-10-23", "c": 2.91, "fx": 1377.3}, {"d": "2024-10-24", "c": 2.9, "fx": 1376.3}, {"d": "2024-10-25", "c": 2.88, "fx": 1376.3}, {"d": "2024-10-28", "c": 2.96, "fx": 1382.0}, {"d": "2024-10-29", "c": 2.95, "fx": 1383.2}, {"d": "2024-10-30", "c": 2.83, "fx": 1378.6}, {"d": "2024-10-31", "c": 2.7, "fx": 1372.9}, {"d": "2024-11-01", "c": 2.72, "fx": 1372.9}, {"d": "2024-11-04", "c": 2.84, "fx": 1372.9}, {"d": "2024-11-05", "c": 2.86, "fx": 1378.0}, {"d": "2024-11-06", "c": 2.62, "fx": 1399.8}, {"d": "2024-11-07", "c": 2.78, "fx": 1372.1}, {"d": "2024-11-08", "c": 2.58, "fx": 1372.1}, {"d": "2024-11-11", "c": 2.47, "fx": 1400.6}, {"d": "2024-11-12", "c": 2.28, "fx": 1406.7}, {"d": "2024-11-13", "c": 2.16, "fx": 1399.0}, {"d": "2024-11-14", "c": 2.15, "fx": 1400.8}, {"d": "2024-11-15", "c": 2.2, "fx": 1400.8}, {"d": "2024-11-18", "c": 2.38, "fx": 1389.5}, {"d": "2024-11-19", "c": 2.35, "fx": 1392.2}, {"d": "2024-11-20", "c": 2.33, "fx": 1397.6}, {"d": "2024-11-21", "c": 2.41, "fx": 1399.6}, {"d": "2024-11-22", "c": 2.42, "fx": 1399.6}, {"d": "2024-11-25", "c": 2.49, "fx": 1395.6}, {"d": "2024-11-26", "c": 2.47, "fx": 1395.3}, {"d": "2024-11-27", "c": 2.41, "fx": 1388.5}, {"d": "2024-11-29", "c": 2.32, "fx": 1393.3}, {"d": "2024-12-02", "c": 2.24, "fx": 1401.1}, {"d": "2024-12-03", "c": 2.12, "fx": 1411.7}, {"d": "2024-12-04", "c": 2.16, "fx": 1410.8}, {"d": "2024-12-05", "c": 2.09, "fx": 1400.0}, {"d": "2024-12-06", "c": 2.02, "fx": 1400.0}, {"d": "2024-12-09", "c": 1.89, "fx": 1426.6}, {"d": "2024-12-10", "c": 1.91, "fx": 1433.9}, {"d": "2024-12-11", "c": 2.08, "fx": 1429.2}, {"d": "2024-12-12", "c": 2.07, "fx": 1427.9}, {"d": "2024-12-13", "c": 2.13, "fx": 1427.9}, {"d": "2024-12-16", "c": 2.08, "fx": 1431.3}, {"d": "2024-12-17", "c": 1.99, "fx": 1436.4}, {"d": "2024-12-18", "c": 1.84, "fx": 1451.5}, {"d": "2024-12-19", "c": 1.88, "fx": 1437.4}, {"d": "2024-12-20", "c": 1.86, "fx": 1437.4}, {"d": "2024-12-23", "c": 1.91, "fx": 1442.7}, {"d": "2024-12-24", "c": 1.9, "fx": 1453.4}, {"d": "2024-12-26", "c": 1.82, "fx": 1467.0}, {"d": "2024-12-27", "c": 1.77, "fx": 1467.0}, {"d": "2024-12-30", "c": 1.73, "fx": 1467.4}, {"d": "2024-12-31", "c": 1.7, "fx": 1467.4}, {"d": "2025-01-02", "c": 1.73, "fx": 1471.7}, {"d": "2025-01-03", "c": 1.9, "fx": 1471.7}, {"d": "2025-01-06", "c": 2.06, "fx": 1459.4}, {"d": "2025-01-07", "c": 1.98, "fx": 1451.9}, {"d": "2025-01-08", "c": 2.05, "fx": 1458.0}, {"d": "2025-01-10", "c": 1.96, "fx": 1455.2}, {"d": "2025-01-13", "c": 1.95, "fx": 1458.9}, {"d": "2025-01-14", "c": 2.0, "fx": 1460.4}, {"d": "2025-01-15", "c": 2.08, "fx": 1437.2}, {"d": "2025-01-16", "c": 2.06, "fx": 1453.3}, {"d": "2025-01-17", "c": 2.09, "fx": 1453.3}, {"d": "2025-01-21", "c": 2.18, "fx": 1425.8}, {"d": "2025-01-22", "c": 2.24, "fx": 1434.3}, {"d": "2025-01-23", "c": 2.19, "fx": 1433.9}, {"d": "2025-01-24", "c": 2.21, "fx": 1433.9}, {"d": "2025-01-27", "c": 2.05, "fx": 1417.9}, {"d": "2025-01-28", "c": 2.03, "fx": 1443.3}, {"d": "2025-01-29", "c": 2.03, "fx": 1443.3}, {"d": "2025-01-30", "c": 2.12, "fx": 1441.7}, {"d": "2025-01-31", "c": 1.98, "fx": 1441.7}, {"d": "2025-02-03", "c": 1.91, "fx": 1459.1}, {"d": "2025-02-04", "c": 2.01, "fx": 1450.2}, {"d": "2025-02-05", "c": 2.09, "fx": 1443.9}, {"d": "2025-02-06", "c": 2.1, "fx": 1442.2}, {"d": "2025-02-07", "c": 1.98, "fx": 1442.2}, {"d": "2025-02-10", "c": 2.09, "fx": 1453.2}, {"d": "2025-02-11", "c": 2.09, "fx": 1450.8}, {"d": "2025-02-12", "c": 2.09, "fx": 1452.1}, {"d": "2025-02-13", "c": 2.23, "fx": 1438.7}, {"d": "2025-02-14", "c": 2.27, "fx": 1438.7}, {"d": "2025-02-18", "c": 2.36, "fx": 1440.1}, {"d": "2025-02-19", "c": 2.45, "fx": 1440.0}, {"d": "2025-02-20", "c": 2.48, "fx": 1431.7}, {"d": "2025-02-21", "c": 2.36, "fx": 1431.7}, {"d": "2025-02-24", "c": 2.35, "fx": 1428.7}, {"d": "2025-02-25", "c": 2.36, "fx": 1429.5}, {"d": "2025-02-26", "c": 2.4, "fx": 1434.4}, {"d": "2025-02-27", "c": 2.16, "fx": 1449.9}, {"d": "2025-02-28", "c": 2.01, "fx": 1449.9}, {"d": "2025-03-03", "c": 1.98, "fx": 1457.9}, {"d": "2025-03-04", "c": 2.0, "fx": 1452.8}, {"d": "2025-03-05", "c": 2.16, "fx": 1443.0}, {"d": "2025-03-06", "c": 2.04, "fx": 1446.5}, {"d": "2025-03-07", "c": 2.11, "fx": 1446.5}, {"d": "2025-03-10", "c": 1.93, "fx": 1457.0}, {"d": "2025-03-11", "c": 1.99, "fx": 1451.0}, {"d": "2025-03-12", "c": 2.13, "fx": 1448.8}, {"d": "2025-03-13", "c": 2.05, "fx": 1453.2}, {"d": "2025-03-14", "c": 2.15, "fx": 1453.2}, {"d": "2025-03-17", "c": 2.34, "fx": 1442.5}, {"d": "2025-03-18", "c": 2.23, "fx": 1448.9}, {"d": "2025-03-19", "c": 2.26, "fx": 1443.4}, {"d": "2025-03-20", "c": 2.2, "fx": 1465.8}, {"d": "2025-03-21", "c": 2.22, "fx": 1465.8}, {"d": "2025-03-24", "c": 2.27, "fx": 1466.3}, {"d": "2025-03-25", "c": 2.24, "fx": 1462.1}, {"d": "2025-03-26", "c": 2.21, "fx": 1465.7}, {"d": "2025-03-27", "c": 2.17, "fx": 1461.9}, {"d": "2025-03-28", "c": 1.97, "fx": 1461.9}, {"d": "2025-03-31", "c": 1.89, "fx": 1472.0}, {"d": "2025-04-01", "c": 1.98, "fx": 1470.0}, {"d": "2025-04-02", "c": 1.96, "fx": 1466.0}, {"d": "2025-04-03", "c": 1.79, "fx": 1450.7}, {"d": "2025-04-04", "c": 1.6, "fx": 1450.7}, {"d": "2025-04-07", "c": 1.55, "fx": 1469.9}, {"d": "2025-04-08", "c": 1.39, "fx": 1486.1}, {"d": "2025-04-09", "c": 1.73, "fx": 1443.9}, {"d": "2025-04-10", "c": 1.61, "fx": 1452.0}, {"d": "2025-04-11", "c": 1.84, "fx": 1452.0}, {"d": "2025-04-14", "c": 1.83, "fx": 1419.4}, {"d": "2025-04-15", "c": 1.84, "fx": 1427.0}, {"d": "2025-04-16", "c": 1.8, "fx": 1414.2}, {"d": "2025-04-17", "c": 1.83, "fx": 1414.2}, {"d": "2025-04-21", "c": 1.84, "fx": 1421.6}, {"d": "2025-04-22", "c": 1.88, "fx": 1429.2}, {"d": "2025-04-23", "c": 1.95, "fx": 1426.4}, {"d": "2025-04-24", "c": 1.99, "fx": 1430.1}, {"d": "2025-04-25", "c": 1.98, "fx": 1430.1}, {"d": "2025-04-28", "c": 1.96, "fx": 1435.9}, {"d": "2025-04-29", "c": 2.01, "fx": 1431.2}, {"d": "2025-04-30", "c": 2.02, "fx": 1423.8}, {"d": "2025-05-01", "c": 1.96, "fx": 1435.1}, {"d": "2025-05-02", "c": 2.17, "fx": 1435.1}, {"d": "2025-05-05", "c": 2.26, "fx": 1374.4}, {"d": "2025-05-06", "c": 2.26, "fx": 1374.8}, {"d": "2025-05-07", "c": 2.18, "fx": 1397.3}, {"d": "2025-05-08", "c": 2.11, "fx": 1403.8}, {"d": "2025-05-09", "c": 2.17, "fx": 1403.8}, {"d": "2025-05-12", "c": 2.2, "fx": 1416.0}, {"d": "2025-05-13", "c": 2.21, "fx": 1416.0}, {"d": "2025-05-14", "c": 2.27, "fx": 1407.3}, {"d": "2025-05-15", "c": 2.29, "fx": 1397.0}, {"d": "2025-05-16", "c": 2.29, "fx": 1397.0}, {"d": "2025-05-19", "c": 2.29, "fx": 1388.6}, {"d": "2025-05-20", "c": 2.24, "fx": 1392.7}, {"d": "2025-05-21", "c": 2.32, "fx": 1373.9}, {"d": "2025-05-22", "c": 2.23, "fx": 1381.3}, {"d": "2025-05-23", "c": 2.3, "fx": 1381.3}, {"d": "2025-05-27", "c": 2.41, "fx": 1374.8}, {"d": "2025-05-28", "c": 2.5, "fx": 1373.6}, {"d": "2025-05-29", "c": 2.63, "fx": 1370.4}, {"d": "2025-05-30", "c": 2.48, "fx": 1370.4}, {"d": "2025-06-02", "c": 2.62, "fx": 1376.1}, {"d": "2025-06-03", "c": 2.65, "fx": 1377.7}, {"d": "2025-06-04", "c": 2.9, "fx": 1361.1}, {"d": "2025-06-05", "c": 3.09, "fx": 1354.6}, {"d": "2025-06-06", "c": 3.11, "fx": 1354.6}, {"d": "2025-06-09", "c": 3.25, "fx": 1353.8}, {"d": "2025-06-10", "c": 3.2, "fx": 1363.9}, {"d": "2025-06-11", "c": 3.32, "fx": 1365.7}, {"d": "2025-06-12", "c": 3.43, "fx": 1349.8}, {"d": "2025-06-13", "c": 3.23, "fx": 1349.8}, {"d": "2025-06-16", "c": 3.49, "fx": 1357.8}, {"d": "2025-06-17", "c": 3.25, "fx": 1380.5}, {"d": "2025-06-18", "c": 3.42, "fx": 1370.8}, {"d": "2025-06-20", "c": 3.52, "fx": 1374.9}, {"d": "2025-06-23", "c": 3.65, "fx": 1361.9}, {"d": "2025-06-24", "c": 4.17, "fx": 1353.8}, {"d": "2025-06-25", "c": 4.12, "fx": 1357.0}, {"d": "2025-06-26", "c": 4.04, "fx": 1352.8}, {"d": "2025-06-27", "c": 3.84, "fx": 1352.8}, {"d": "2025-06-30", "c": 4.0, "fx": 1348.5}, {"d": "2025-07-01", "c": 3.98, "fx": 1355.6}, {"d": "2025-07-02", "c": 4.03, "fx": 1354.8}, {"d": "2025-07-03", "c": 4.14, "fx": 1357.1}, {"d": "2025-07-07", "c": 3.71, "fx": 1374.6}, {"d": "2025-07-08", "c": 4.01, "fx": 1370.3}, {"d": "2025-07-09", "c": 4.01, "fx": 1373.0}, {"d": "2025-07-10", "c": 4.19, "fx": 1372.6}, {"d": "2025-07-11", "c": 4.09, "fx": 1372.6}, {"d": "2025-07-14", "c": 4.19, "fx": 1382.0}, {"d": "2025-07-15", "c": 4.17, "fx": 1386.4}, {"d": "2025-07-16", "c": 4.17, "fx": 1384.9}, {"d": "2025-07-17", "c": 4.16, "fx": 1391.6}, {"d": "2025-07-18", "c": 4.05, "fx": 1391.6}, {"d": "2025-07-21", "c": 4.29, "fx": 1381.8}, {"d": "2025-07-22", "c": 4.13, "fx": 1379.8}, {"d": "2025-07-23", "c": 4.28, "fx": 1373.7}, {"d": "2025-07-24", "c": 4.19, "fx": 1372.0}, {"d": "2025-07-25", "c": 4.17, "fx": 1372.0}, {"d": "2025-07-28", "c": 4.08, "fx": 1388.3}, {"d": "2025-07-29", "c": 4.21, "fx": 1388.9}, {"d": "2025-07-30", "c": 4.25, "fx": 1392.5}, {"d": "2025-07-31", "c": 4.09, "fx": 1391.5}, {"d": "2025-08-01", "c": 3.72, "fx": 1391.5}, {"d": "2025-08-04", "c": 3.99, "fx": 1383.6}, {"d": "2025-08-05", "c": 4.08, "fx": 1386.6}, {"d": "2025-08-06", "c": 4.12, "fx": 1384.4}, {"d": "2025-08-07", "c": 4.16, "fx": 1385.0}, {"d": "2025-08-08", "c": 4.17, "fx": 1385.0}, {"d": "2025-08-11", "c": 4.09, "fx": 1389.8}, {"d": "2025-08-12", "c": 4.26, "fx": 1383.1}, {"d": "2025-08-13", "c": 4.37, "fx": 1378.8}, {"d": "2025-08-14", "c": 4.19, "fx": 1387.9}, {"d": "2025-08-15", "c": 4.14, "fx": 1387.9}, {"d": "2025-08-18", "c": 4.04, "fx": 1386.9}, {"d": "2025-08-19", "c": 3.82, "fx": 1391.3}, {"d": "2025-08-20", "c": 3.8, "fx": 1396.9}, {"d": "2025-08-21", "c": 3.77, "fx": 1399.6}, {"d": "2025-08-22", "c": 4.14, "fx": 1399.6}, {"d": "2025-08-25", "c": 4.0, "fx": 1389.1}, {"d": "2025-08-26", "c": 3.94, "fx": 1393.9}, {"d": "2025-08-27", "c": 3.96, "fx": 1392.8}, {"d": "2025-08-28", "c": 4.14, "fx": 1384.4}, {"d": "2025-08-29", "c": 3.91, "fx": 1384.4}, {"d": "2025-09-02", "c": 3.85, "fx": 1394.6}, {"d": "2025-09-03", "c": 4.0, "fx": 1389.6}, {"d": "2025-09-04", "c": 4.03, "fx": 1392.1}, {"d": "2025-09-05", "c": 4.12, "fx": 1392.1}, {"d": "2025-09-08", "c": 4.2, "fx": 1385.7}, {"d": "2025-09-09", "c": 4.33, "fx": 1387.2}, {"d": "2025-09-10", "c": 4.63, "fx": 1387.2}, {"d": "2025-09-11", "c": 4.85, "fx": 1389.5}, {"d": "2025-09-12", "c": 5.0, "fx": 1389.5}, {"d": "2025-09-15", "c": 5.1, "fx": 1385.0}, {"d": "2025-09-16", "c": 5.39, "fx": 1377.6}, {"d": "2025-09-17", "c": 5.21, "fx": 1378.7}, {"d": "2025-09-18", "c": 5.4, "fx": 1386.8}, {"d": "2025-09-19", "c": 5.24, "fx": 1386.8}, {"d": "2025-09-22", "c": 5.55, "fx": 1389.4}, {"d": "2025-09-23", "c": 5.52, "fx": 1391.8}, {"d": "2025-09-24", "c": 5.23, "fx": 1403.7}, {"d": "2025-09-25", "c": 5.2, "fx": 1408.9}, {"d": "2025-09-26", "c": 5.0, "fx": 1408.9}, {"d": "2025-09-29", "c": 5.25, "fx": 1399.3}, {"d": "2025-09-30", "c": 5.23, "fx": 1403.2}, {"d": "2025-10-01", "c": 5.57, "fx": 1401.8}, {"d": "2025-10-02", "c": 5.91, "fx": 1405.6}, {"d": "2025-10-03", "c": 5.98, "fx": 1405.6}, {"d": "2025-10-06", "c": 6.17, "fx": 1409.9}, {"d": "2025-10-07", "c": 5.87, "fx": 1414.6}, {"d": "2025-10-08", "c": 6.03, "fx": 1422.5}, {"d": "2025-10-09", "c": 5.87, "fx": 1421.5}, {"d": "2025-10-10", "c": 5.3, "fx": 1421.5}, {"d": "2025-10-13", "c": 5.85, "fx": 1426.1}, {"d": "2025-10-14", "c": 5.66, "fx": 1429.4}, {"d": "2025-10-15", "c": 6.16, "fx": 1420.1}, {"d": "2025-10-16", "c": 6.75, "fx": 1415.7}, {"d": "2025-10-17", "c": 6.89, "fx": 1415.7}, {"d": "2025-10-20", "c": 7.35, "fx": 1419.7}, {"d": "2025-10-21", "c": 6.9, "fx": 1430.7}, {"d": "2025-10-22", "c": 7.09, "fx": 1430.4}, {"d": "2025-10-23", "c": 7.23, "fx": 1435.8}, {"d": "2025-10-24", "c": 7.71, "fx": 1435.8}, {"d": "2025-10-27", "c": 8.28, "fx": 1431.0}, {"d": "2025-10-28", "c": 8.31, "fx": 1426.0}, {"d": "2025-10-29", "c": 8.96, "fx": 1424.0}, {"d": "2025-10-30", "c": 8.51, "fx": 1424.0}, {"d": "2025-10-31", "c": 8.95, "fx": 1424.0}, {"d": "2025-11-03", "c": 9.99, "fx": 1429.0}, {"d": "2025-11-04", "c": 8.51, "fx": 1439.8}, {"d": "2025-11-05", "c": 8.72, "fx": 1439.7}, {"d": "2025-11-06", "c": 7.89, "fx": 1447.9}, {"d": "2025-11-07", "c": 7.44, "fx": 1447.9}, {"d": "2025-11-10", "c": 8.37, "fx": 1456.1}, {"d": "2025-11-11", "c": 8.27, "fx": 1459.8}, {"d": "2025-11-12", "c": 8.44, "fx": 1468.0}, {"d": "2025-11-13", "c": 7.94, "fx": 1468.7}, {"d": "2025-11-14", "c": 7.97, "fx": 1468.7}, {"d": "2025-11-17", "c": 7.67, "fx": 1461.7}, {"d": "2025-11-18", "c": 7.31, "fx": 1456.6}, {"d": "2025-11-19", "c": 7.07, "fx": 1466.1}, {"d": "2025-11-20", "c": 6.59, "fx": 1473.2}, {"d": "2025-11-21", "c": 6.74, "fx": 1473.2}, {"d": "2025-11-24", "c": 6.99, "fx": 1474.9}, {"d": "2025-11-25", "c": 6.85, "fx": 1464.9}, {"d": "2025-11-26", "c": 7.26, "fx": 1470.6}, {"d": "2025-11-28", "c": 7.1, "fx": 1461.4}, {"d": "2025-12-01", "c": 7.03, "fx": 1470.2}, {"d": "2025-12-02", "c": 7.36, "fx": 1467.4}, {"d": "2025-12-03", "c": 7.58, "fx": 1465.0}, {"d": "2025-12-04", "c": 7.31, "fx": 1472.4}, {"d": "2025-12-05", "c": 7.87, "fx": 1472.4}, {"d": "2025-12-08", "c": 8.06, "fx": 1468.5}, {"d": "2025-12-09", "c": 8.18, "fx": 1467.9}, {"d": "2025-12-10", "c": 8.48, "fx": 1469.0}, {"d": "2025-12-11", "c": 8.03, "fx": 1470.8}, {"d": "2025-12-12", "c": 7.44, "fx": 1470.8}, {"d": "2025-12-15", "c": 7.44, "fx": 1467.5}, {"d": "2025-12-16", "c": 7.14, "fx": 1471.7}, {"d": "2025-12-17", "c": 6.93, "fx": 1474.0}, {"d": "2025-12-18", "c": 7.27, "fx": 1474.4}, {"d": "2025-12-19", "c": 7.57, "fx": 1474.4}, {"d": "2025-12-22", "c": 7.68, "fx": 1476.8}, {"d": "2025-12-23", "c": 7.93, "fx": 1478.7}, {"d": "2025-12-24", "c": 8.39, "fx": 1478.7}, {"d": "2025-12-26", "c": 8.72, "fx": 1446.5}, {"d": "2025-12-29", "c": 9.51, "fx": 1434.7}, {"d": "2025-12-30", "c": 9.46, "fx": 1437.9}, {"d": "2025-12-31", "c": 9.08, "fx": 1437.9}, {"d": "2026-01-02", "c": 10.42, "fx": 1443.6}, {"d": "2026-01-05", "c": 11.24, "fx": 1445.6}, {"d": "2026-01-06", "c": 12.16, "fx": 1445.0}, {"d": "2026-01-07", "c": 11.95, "fx": 1446.1}, {"d": "2026-01-08", "c": 11.81, "fx": 1450.1}, {"d": "2026-01-09", "c": 12.52, "fx": 1450.1}, {"d": "2026-01-12", "c": 12.58, "fx": 1464.9}, {"d": "2026-01-13", "c": 12.07, "fx": 1473.0}, {"d": "2026-01-14", "c": 12.76, "fx": 1462.9}, {"d": "2026-01-15", "c": 13.27, "fx": 1468.8}, {"d": "2026-01-16", "c": 13.69, "fx": 1468.8}, {"d": "2026-01-20", "c": 13.21, "fx": 1477.8}, {"d": "2026-01-21", "c": 14.87, "fx": 1464.8}, {"d": "2026-01-22", "c": 15.02, "fx": 1463.3}, {"d": "2026-01-23", "c": 15.77, "fx": 1463.3}, {"d": "2026-01-26", "c": 15.54, "fx": 1441.0}, {"d": "2026-01-27", "c": 17.62, "fx": 1432.5}, {"d": "2026-01-28", "c": 18.89, "fx": 1429.3}, {"d": "2026-01-29", "c": 18.38, "fx": 1428.8}, {"d": "2026-01-30", "c": 17.39, "fx": 1428.8}, {"d": "2026-02-02", "c": 16.84, "fx": 1452.5}, {"d": "2026-02-03", "c": 18.15, "fx": 1446.7}, {"d": "2026-02-04", "c": 16.48, "fx": 1460.1}, {"d": "2026-02-05", "c": 16.38, "fx": 1470.7}, {"d": "2026-02-06", "c": 18.16, "fx": 1470.7}, {"d": "2026-02-09", "c": 18.77, "fx": 1458.5}, {"d": "2026-02-10", "c": 18.1, "fx": 1455.3}, {"d": "2026-02-11", "c": 20.66, "fx": 1444.2}, {"d": "2026-02-12", "c": 20.88, "fx": 1440.9}, {"d": "2026-02-13", "c": 22.37, "fx": 1440.9}, {"d": "2026-02-17", "c": 20.85, "fx": 1440.0}, {"d": "2026-02-18", "c": 21.78, "fx": 1440.2}, {"d": "2026-02-19", "c": 22.87, "fx": 1447.8}, {"d": "2026-02-20", "c": 26.22, "fx": 1447.8}, {"d": "2026-02-23", "c": 24.9, "fx": 1442.2}, {"d": "2026-02-24", "c": 27.63, "fx": 1440.0}, {"d": "2026-02-25", "c": 30.14, "fx": 1426.9}, {"d": "2026-02-26", "c": 30.98, "fx": 1432.3}, {"d": "2026-02-27", "c": 31.49, "fx": 1432.3}, {"d": "2026-03-02", "c": 29.24, "fx": 1452.3}, {"d": "2026-03-03", "c": 20.15, "fx": 1483.1}, {"d": "2026-03-04", "c": 21.03, "fx": 1460.8}, {"d": "2026-03-05", "c": 17.15, "fx": 1479.5}, {"d": "2026-03-06", "c": 17.41, "fx": 1479.5}, {"d": "2026-03-09", "c": 20.14, "fx": 1464.5}, {"d": "2026-03-10", "c": 18.68, "fx": 1472.8}, {"d": "2026-03-11", "c": 19.7, "fx": 1475.3}, {"d": "2026-03-12", "c": 15.71, "fx": 1470.6}, {"d": "2026-03-13", "c": 15.81, "fx": 1470.6}, {"d": "2026-03-16", "c": 19.13, "fx": 1488.9}, {"d": "2026-03-17", "c": 19.78, "fx": 1484.9}, {"d": "2026-03-18", "c": 18.79, "fx": 1505.2}, {"d": "2026-03-19", "c": 19.88, "fx": 1489.8}, {"d": "2026-03-20", "c": 16.04, "fx": 1489.8}, {"d": "2026-03-23", "c": 18.88, "fx": 1485.4}, {"d": "2026-03-24", "c": 16.78, "fx": 1497.3}, {"d": "2026-03-25", "c": 16.38, "fx": 1501.0}, {"d": "2026-03-26", "c": 13.5, "fx": 1508.4}, {"d": "2026-03-27", "c": 13.7, "fx": 1508.4}, {"d": "2026-03-30", "c": 12.16, "fx": 1516.1}, {"d": "2026-03-31", "c": 14.21, "fx": 1503.3}, {"d": "2026-04-01", "c": 15.3, "fx": 1512.1}, {"d": "2026-04-02", "c": 14.11, "fx": 1509.2}, {"d": "2026-04-06", "c": 15.1, "fx": 1507.8}, {"d": "2026-04-07", "c": 15.55, "fx": 1499.1}, {"d": "2026-04-08", "c": 20.25, "fx": 1477.6}, {"d": "2026-04-09", "c": 19.97, "fx": 1473.3}, {"d": "2026-04-10", "c": 19.7, "fx": 1473.3}, {"d": "2026-04-13", "c": 20.7, "fx": 1476.8}, {"d": "2026-04-14", "c": 23.18, "fx": 1469.4}, {"d": "2026-04-15", "c": 22.29, "fx": 1474.1}, {"d": "2026-04-16", "c": 23.45, "fx": 1477.9}, {"d": "2026-04-17", "c": 25.79, "fx": 1477.9}, {"d": "2026-04-20", "c": 24.7, "fx": 1469.3}, {"d": "2026-04-21", "c": 23.09, "fx": 1485.8}, {"d": "2026-04-22", "c": 27.14, "fx": 1478.0}, {"d": "2026-04-23", "c": 24.52, "fx": 1479.9}, {"d": "2026-04-24", "c": 26.32, "fx": 1479.9}, {"d": "2026-04-27", "c": 27.55, "fx": 1473.0}, {"d": "2026-04-28", "c": 26.29, "fx": 1472.0}, {"d": "2026-04-29", "c": 26.08, "fx": 1487.4}, {"d": "2026-04-30", "c": 29.39, "fx": 1474.0}, {"d": "2026-05-01", "c": 30.13, "fx": 1474.0}, {"d": "2026-05-04", "c": 31.09, "fx": 1476.1}, {"d": "2026-05-05", "c": 36.59, "fx": 1474.0}, {"d": "2026-05-06", "c": 41.95, "fx": 1444.4}, {"d": "2026-05-07", "c": 38.42, "fx": 1454.8}, {"d": "2026-05-08", "c": 47.11, "fx": 1454.8}, {"d": "2026-05-11", "c": 49.15, "fx": 1474.4}, {"d": "2026-05-12", "c": 38.06, "fx": 1493.0}, {"d": "2026-05-13", "c": 44.69, "fx": 1489.8}, {"d": "2026-05-14", "c": 45.99, "fx": 1493.3}, {"d": "2026-05-15", "c": 37.57, "fx": 1493.3}, {"d": "2026-05-18", "c": 35.69, "fx": 1492.3}, {"d": "2026-05-19", "c": 34.49, "fx": 1507.8}, {"d": "2026-05-20", "c": 38.03, "fx": 1499.8}, {"d": "2026-05-21", "c": 41.95, "fx": 1504.4}, {"d": "2026-05-22", "c": 39.02, "fx": 1504.4}, {"d": "2026-05-26", "c": 50.75, "fx": 1505.4}, {"d": "2026-05-27", "c": 48.94, "fx": 1503.1}, {"d": "2026-05-28", "c": 55.01, "fx": 1495.3}, {"d": "2026-05-29", "c": 54.5, "fx": 1495.3}, {"d": "2026-06-01", "c": 63.24, "fx": 1511.3}, {"d": "2026-06-02", "c": 61.24, "fx": 1516.6}, {"d": "2026-06-03", "c": 59.84, "fx": 1530.1}, {"d": "2026-06-04", "c": 52.49, "fx": 1533.1}, {"d": "2026-06-05", "c": 30.5, "fx": 1533.1}, {"d": "2026-06-08", "c": 35.47, "fx": 1528.9}, {"d": "2026-06-09", "c": 34.6, "fx": 1525.8}, {"d": "2026-06-10", "c": 31.47, "fx": 1525.1}, {"d": "2026-06-11", "c": 42.1, "fx": 1517.4}, {"d": "2026-06-12", "c": 41.24, "fx": 1517.4}, {"d": "2026-06-15", "c": 49.96, "fx": 1513.3}, {"d": "2026-06-16", "c": 45.95, "fx": 1511.0}, {"d": "2026-06-17", "c": 45.72, "fx": 1525.4}, {"d": "2026-06-18", "c": 54.54, "fx": 1537.6}, {"d": "2026-06-22", "c": 54.43, "fx": 1539.1}, {"d": "2026-06-23", "c": 35.0, "fx": 1535.2}, {"d": "2026-06-24", "c": 37.06, "fx": 1542.8}, {"d": "2026-06-25", "c": 41.45, "fx": 1546.5}, {"d": "2026-06-26", "c": 36.93, "fx": 1546.5}, {"d": "2026-06-29", "c": 36.92, "fx": 1541.7}, {"d": "2026-06-30", "c": 39.07, "fx": 1548.6}, {"d": "2026-07-01", "c": 30.0, "fx": 1551.8}, {"d": "2026-07-02", "c": 27.07, "fx": 1542.1}, {"d": "2026-07-06", "c": 31.23, "fx": 1528.8}, {"d": "2026-07-07", "c": 27.24, "fx": 1519.9}, {"d": "2026-07-08", "c": 27.67, "fx": 1503.3}, {"d": "2026-07-09", "c": 28.5, "fx": 1505.9}, {"d": "2026-07-10", "c": 27.85, "fx": 1505.9}, {"d": "2026-07-13", "c": 20.96, "fx": 1497.7}, {"d": "2026-07-14", "c": 24.07, "fx": 1487.9}, {"d": "2026-07-15", "c": 21.87, "fx": 1486.2}, {"d": "2026-07-16", "c": 18.65, "fx": 1478.8}, {"d": "2026-07-17", "c": 18.26, "fx": 1478.8}, {"d": "2026-07-20", "c": 18.41, "fx": 1475.0}, {"d": "2026-07-21", "c": 21.73, "fx": 1479.7}, {"d": "2026-07-22", "c": 20.76, "fx": 1475.6}, {"d": "2026-07-23", "c": 22.01, "fx": 1474.0}, {"d": "2026-07-24", "c": 17.85, "fx": 1474.0}, {"d": "2026-07-27", "c": 17.21, "fx": 1464.4}, {"d": "2026-07-28", "c": 14.15, "fx": 1453.2}, {"d": "2026-07-29", "c": 12.08, "fx": 1442.3}, {"d": "2026-07-30", "c": 16.28, "fx": 1420.6}, {"d": "2026-07-31", "c": 14.99, "fx": 1420.6}, {"d": "2026-08-03", "c": 15.87, "fx": 1428.5}, {"d": "2026-08-04", "c": 19.12, "fx": 1428.4}, {"d": "2026-08-05", "c": 18.44, "fx": 1421.2}, {"d": "2026-08-06", "c": 16.81, "fx": 1422.3}, {"d": "2026-08-07", "c": 17.36, "fx": 1422.3}, {"d": "2026-08-10", "c": 16.41, "fx": 1417.3}, {"d": "2026-08-11", "c": 17.64, "fx": 1412.2}, {"d": "2026-08-12", "c": 20.32, "fx": 1416.5}, {"d": "2026-08-13", "c": 21.27, "fx": 1416.8}, {"d": "2026-08-14", "c": 21.6, "fx": 1416.8}, {"d": "2026-08-17", "c": 23.54, "fx": 1414.7}, {"d": "2026-08-18", "c": 17.84, "fx": 1413.6}, {"d": "2026-08-19", "c": 19.11, "fx": 1389.4}, {"d": "2026-08-20", "c": 20.33, "fx": 1390.8}, {"d": "2026-08-21", "c": 20.36, "fx": 1390.8}, {"d": "2026-08-24", "c": 18.76, "fx": 1380.8}, {"d": "2026-08-25", "c": 20.83, "fx": 1381.5}, {"d": "2026-08-26", "c": 20.49, "fx": 1383.5}, {"d": "2026-08-27", "c": 21.41, "fx": 1380.4}, {"d": "2026-08-28", "c": 20.77, "fx": 1380.4}, {"d": "2026-08-31", "c": 20.96, "fx": 1366.6}, {"d": "2026-09-01", "c": 19.18, "fx": 1372.9}, {"d": "2026-09-02", "c": 20.15, "fx": 1358.4}, {"d": "2026-09-03", "c": 20.69, "fx": 1355.4}, {"d": "2026-09-04", "c": 23.47, "fx": 1355.4}, {"d": "2026-09-08", "c": 23.84, "fx": 1339.2}, {"d": "2026-09-09", "c": 24.2, "fx": 1339.2}, {"d": "2026-09-10", "c": 21.17, "fx": 1348.2}, {"d": "2026-09-11", "c": 23.07, "fx": 1348.2}, {"d": "2026-09-14", "c": 18.57, "fx": 1345.6}, {"d": "2026-09-15", "c": 18.6, "fx": 1363.6}, {"d": "2026-09-16", "c": 18.28, "fx": 1376.6}, {"d": "2026-09-17", "c": 20.41, "fx": 1379.5}, {"d": "2026-09-18", "c": 20.04, "fx": 1379.5}, {"d": "2026-09-21", "c": 22.55, "fx": 1373.7}, {"d": "2026-09-22", "c": 23.77, "fx": 1350.4}, {"d": "2026-09-23", "c": 21.27, "fx": 1371.1}], "equity": [{"d": "2023-11-13", "v": 2000000}, {"d": "2023-11-14", "v": 2000000}, {"d": "2023-11-15", "v": 2000000}, {"d": "2023-11-16", "v": 2000000}, {"d": "2023-11-17", "v": 1996481}, {"d": "2023-11-20", "v": 2018265}, {"d": "2023-11-21", "v": 2010813}, {"d": "2023-11-22", "v": 2010813}, {"d": "2023-11-24", "v": 2012305}, {"d": "2023-11-27", "v": 2016883}, {"d": "2023-11-28", "v": 2016883}, {"d": "2023-11-29", "v": 2010872}, {"d": "2023-11-30", "v": 2005999}, {"d": "2023-12-01", "v": 2005999}, {"d": "2023-12-04", "v": 1998606}, {"d": "2023-12-05", "v": 1989769}, {"d": "2023-12-06", "v": 1989769}, {"d": "2023-12-07", "v": 1989769}, {"d": "2023-12-08", "v": 1989769}, {"d": "2023-12-11", "v": 1989769}, {"d": "2023-12-12", "v": 1994783}, {"d": "2023-12-13", "v": 2002051}, {"d": "2023-12-14", "v": 2002051}, {"d": "2023-12-15", "v": 1993998}, {"d": "2023-12-18", "v": 2002717}, {"d": "2023-12-19", "v": 2002717}, {"d": "2023-12-20", "v": 1997602}, {"d": "2023-12-21", "v": 2013061}, {"d": "2023-12-22", "v": 2013061}, {"d": "2023-12-26", "v": 2013419}, {"d": "2023-12-27", "v": 2023923}, {"d": "2023-12-28", "v": 2023923}, {"d": "2023-12-29", "v": 2023067}, {"d": "2024-01-02", "v": 2017108}, {"d": "2024-01-03", "v": 2017108}, {"d": "2024-01-04", "v": 2017108}, {"d": "2024-01-05", "v": 2017108}, {"d": "2024-01-08", "v": 2017108}, {"d": "2024-01-09", "v": 2017108}, {"d": "2024-01-10", "v": 2017108}, {"d": "2024-01-11", "v": 2017108}, {"d": "2024-01-12", "v": 2017108}, {"d": "2024-01-16", "v": 2017108}, {"d": "2024-01-17", "v": 2017108}, {"d": "2024-01-18", "v": 2017108}, {"d": "2024-01-19", "v": 2017108}, {"d": "2024-01-22", "v": 2017108}, {"d": "2024-01-23", "v": 2017108}, {"d": "2024-01-24", "v": 2017108}, {"d": "2024-01-25", "v": 2017108}, {"d": "2024-01-26", "v": 2017108}, {"d": "2024-01-29", "v": 2017108}, {"d": "2024-01-30", "v": 2017108}, {"d": "2024-01-31", "v": 2017108}, {"d": "2024-02-01", "v": 2017108}, {"d": "2024-02-02", "v": 2017108}, {"d": "2024-02-05", "v": 2017108}, {"d": "2024-02-06", "v": 2017108}, {"d": "2024-02-07", "v": 2017108}, {"d": "2024-02-08", "v": 2015511}, {"d": "2024-02-09", "v": 2020722}, {"d": "2024-02-12", "v": 2020722}, {"d": "2024-02-13", "v": 2014623}, {"d": "2024-02-14", "v": 2028758}, {"d": "2024-02-15", "v": 2028758}, {"d": "2024-02-16", "v": 2028758}, {"d": "2024-02-20", "v": 2028004}, {"d": "2024-02-21", "v": 2027138}, {"d": "2024-02-22", "v": 2027138}, {"d": "2024-02-23", "v": 2028192}, {"d": "2024-02-26", "v": 2012229}, {"d": "2024-02-27", "v": 2012229}, {"d": "2024-02-28", "v": 2012229}, {"d": "2024-02-29", "v": 2007261}, {"d": "2024-03-01", "v": 2023674}, {"d": "2024-03-04", "v": 2023674}, {"d": "2024-03-05", "v": 2023674}, {"d": "2024-03-06", "v": 2023674}, {"d": "2024-03-07", "v": 2023674}, {"d": "2024-03-08", "v": 2023674}, {"d": "2024-03-11", "v": 2023674}, {"d": "2024-03-12", "v": 2023674}, {"d": "2024-03-13", "v": 2023674}, {"d": "2024-03-14", "v": 2023674}, {"d": "2024-03-15", "v": 2023674}, {"d": "2024-03-18", "v": 2023674}, {"d": "2024-03-19", "v": 2023674}, {"d": "2024-03-20", "v": 2023674}, {"d": "2024-03-21", "v": 2023674}, {"d": "2024-03-22", "v": 2021165}, {"d": "2024-03-25", "v": 2030503}, {"d": "2024-03-26", "v": 2030503}, {"d": "2024-03-27", "v": 2027899}, {"d": "2024-03-28", "v": 2022669}, {"d": "2024-04-01", "v": 2022669}, {"d": "2024-04-02", "v": 2022669}, {"d": "2024-04-03", "v": 2022669}, {"d": "2024-04-04", "v": 2022669}, {"d": "2024-04-05", "v": 2022669}, {"d": "2024-04-08", "v": 2022669}, {"d": "2024-04-09", "v": 2022669}, {"d": "2024-04-10", "v": 2022669}, {"d": "2024-04-11", "v": 2022669}, {"d": "2024-04-12", "v": 2022669}, {"d": "2024-04-15", "v": 2022669}, {"d": "2024-04-16", "v": 2022669}, {"d": "2024-04-17", "v": 2022669}, {"d": "2024-04-18", "v": 2022669}, {"d": "2024-04-19", "v": 2022669}, {"d": "2024-04-22", "v": 2022669}, {"d": "2024-04-23", "v": 2022669}, {"d": "2024-04-24", "v": 2022669}, {"d": "2024-04-25", "v": 2022669}, {"d": "2024-04-26", "v": 2022669}, {"d": "2024-04-29", "v": 2022669}, {"d": "2024-04-30", "v": 2022669}, {"d": "2024-05-01", "v": 2022669}, {"d": "2024-05-02", "v": 2022669}, {"d": "2024-05-03", "v": 2022669}, {"d": "2024-05-06", "v": 2022669}, {"d": "2024-05-07", "v": 2022669}, {"d": "2024-05-08", "v": 2022669}, {"d": "2024-05-09", "v": 2022965}, {"d": "2024-05-10", "v": 2018726}, {"d": "2024-05-13", "v": 2018726}, {"d": "2024-05-14", "v": 2018726}, {"d": "2024-05-15", "v": 2018726}, {"d": "2024-05-16", "v": 2018726}, {"d": "2024-05-17", "v": 2018726}, {"d": "2024-05-20", "v": 2018726}, {"d": "2024-05-21", "v": 2018726}, {"d": "2024-05-22", "v": 2018726}, {"d": "2024-05-23", "v": 2018726}, {"d": "2024-05-24", "v": 2018726}, {"d": "2024-05-28", "v": 2018726}, {"d": "2024-05-29", "v": 2018726}, {"d": "2024-05-30", "v": 2018726}, {"d": "2024-05-31", "v": 2018726}, {"d": "2024-06-03", "v": 2018726}, {"d": "2024-06-04", "v": 2018726}, {"d": "2024-06-05", "v": 2018726}, {"d": "2024-06-06", "v": 2018726}, {"d": "2024-06-07", "v": 2018726}, {"d": "2024-06-10", "v": 2018726}, {"d": "2024-06-11", "v": 2018726}, {"d": "2024-06-12", "v": 2018726}, {"d": "2024-06-13", "v": 2018726}, {"d": "2024-06-14", "v": 2018726}, {"d": "2024-06-17", "v": 2018726}, {"d": "2024-06-18", "v": 2018726}, {"d": "2024-06-20", "v": 2018726}, {"d": "2024-06-21", "v": 2018726}, {"d": "2024-06-24", "v": 2018726}, {"d": "2024-06-25", "v": 2018726}, {"d": "2024-06-26", "v": 2018726}, {"d": "2024-06-27", "v": 2018726}, {"d": "2024-06-28", "v": 2018726}, {"d": "2024-07-01", "v": 2018726}, {"d": "2024-07-02", "v": 2018726}, {"d": "2024-07-03", "v": 2018726}, {"d": "2024-07-05", "v": 2018726}, {"d": "2024-07-08", "v": 2018726}, {"d": "2024-07-09", "v": 2018726}, {"d": "2024-07-10", "v": 2018726}, {"d": "2024-07-11", "v": 2018726}, {"d": "2024-07-12", "v": 2018726}, {"d": "2024-07-15", "v": 2018726}, {"d": "2024-07-16", "v": 2018726}, {"d": "2024-07-17", "v": 2018726}, {"d": "2024-07-18", "v": 2018726}, {"d": "2024-07-19", "v": 2018726}, {"d": "2024-07-22", "v": 2018726}, {"d": "2024-07-23", "v": 2018726}, {"d": "2024-07-24", "v": 2018726}, {"d": "2024-07-25", "v": 2018726}, {"d": "2024-07-26", "v": 2018726}, {"d": "2024-07-29", "v": 2018726}, {"d": "2024-07-30", "v": 2018726}, {"d": "2024-07-31", "v": 2018726}, {"d": "2024-08-01", "v": 2018726}, {"d": "2024-08-02", "v": 2018726}, {"d": "2024-08-05", "v": 2018726}, {"d": "2024-08-06", "v": 2018726}, {"d": "2024-08-07", "v": 2018726}, {"d": "2024-08-08", "v": 2018726}, {"d": "2024-08-09", "v": 2018726}, {"d": "2024-08-12", "v": 2018726}, {"d": "2024-08-13", "v": 2018726}, {"d": "2024-08-14", "v": 2018726}, {"d": "2024-08-15", "v": 2018726}, {"d": "2024-08-16", "v": 2018726}, {"d": "2024-08-19", "v": 2018726}, {"d": "2024-08-20", "v": 2018726}, {"d": "2024-08-21", "v": 2018726}, {"d": "2024-08-22", "v": 2018726}, {"d": "2024-08-23", "v": 2018726}, {"d": "2024-08-26", "v": 2009144}, {"d": "2024-08-27", "v": 2009916}, {"d": "2024-08-28", "v": 2009916}, {"d": "2024-08-29", "v": 2009916}, {"d": "2024-08-30", "v": 2009916}, {"d": "2024-09-03", "v": 2009916}, {"d": "2024-09-04", "v": 2009916}, {"d": "2024-09-05", "v": 2009916}, {"d": "2024-09-06", "v": 2009916}, {"d": "2024-09-09", "v": 2009916}, {"d": "2024-09-10", "v": 2009916}, {"d": "2024-09-11", "v": 2009916}, {"d": "2024-09-12", "v": 2009916}, {"d": "2024-09-13", "v": 2009916}, {"d": "2024-09-16", "v": 2009916}, {"d": "2024-09-17", "v": 2009916}, {"d": "2024-09-18", "v": 2009916}, {"d": "2024-09-19", "v": 2009916}, {"d": "2024-09-20", "v": 2009916}, {"d": "2024-09-23", "v": 2009916}, {"d": "2024-09-24", "v": 2009916}, {"d": "2024-09-25", "v": 2009916}, {"d": "2024-09-26", "v": 2009916}, {"d": "2024-09-27", "v": 2009916}, {"d": "2024-09-30", "v": 1995701}, {"d": "2024-10-01", "v": 1989458}, {"d": "2024-10-02", "v": 1989458}, {"d": "2024-10-03", "v": 1989458}, {"d": "2024-10-04", "v": 1989458}, {"d": "2024-10-07", "v": 1989458}, {"d": "2024-10-08", "v": 1989458}, {"d": "2024-10-09", "v": 1989458}, {"d": "2024-10-10", "v": 1989458}, {"d": "2024-10-11", "v": 1989458}, {"d": "2024-10-14", "v": 1989458}, {"d": "2024-10-15", "v": 1989458}, {"d": "2024-10-16", "v": 1989458}, {"d": "2024-10-17", "v": 1989458}, {"d": "2024-10-18", "v": 1989458}, {"d": "2024-10-21", "v": 1989458}, {"d": "2024-10-22", "v": 1989458}, {"d": "2024-10-23", "v": 1989458}, {"d": "2024-10-24", "v": 1989458}, {"d": "2024-10-25", "v": 1989458}, {"d": "2024-10-28", "v": 1989458}, {"d": "2024-10-29", "v": 1989458}, {"d": "2024-10-30", "v": 1989458}, {"d": "2024-10-31", "v": 1989458}, {"d": "2024-11-01", "v": 1989458}, {"d": "2024-11-04", "v": 1989458}, {"d": "2024-11-05", "v": 1989458}, {"d": "2024-11-06", "v": 1989458}, {"d": "2024-11-07", "v": 1989458}, {"d": "2024-11-08", "v": 1989458}, {"d": "2024-11-11", "v": 1989458}, {"d": "2024-11-12", "v": 1989458}, {"d": "2024-11-13", "v": 1989458}, {"d": "2024-11-14", "v": 1989458}, {"d": "2024-11-15", "v": 1989458}, {"d": "2024-11-18", "v": 1989458}, {"d": "2024-11-19", "v": 1989458}, {"d": "2024-11-20", "v": 1989458}, {"d": "2024-11-21", "v": 1989458}, {"d": "2024-11-22", "v": 1989458}, {"d": "2024-11-25", "v": 1989458}, {"d": "2024-11-26", "v": 1989458}, {"d": "2024-11-27", "v": 1989458}, {"d": "2024-11-29", "v": 1989458}, {"d": "2024-12-02", "v": 1989458}, {"d": "2024-12-03", "v": 1989458}, {"d": "2024-12-04", "v": 1989458}, {"d": "2024-12-05", "v": 1989458}, {"d": "2024-12-06", "v": 1989458}, {"d": "2024-12-09", "v": 1989458}, {"d": "2024-12-10", "v": 1989458}, {"d": "2024-12-11", "v": 1989458}, {"d": "2024-12-12", "v": 1989458}, {"d": "2024-12-13", "v": 1989458}, {"d": "2024-12-16", "v": 1989458}, {"d": "2024-12-17", "v": 1989458}, {"d": "2024-12-18", "v": 1989458}, {"d": "2024-12-19", "v": 1989458}, {"d": "2024-12-20", "v": 1989458}, {"d": "2024-12-23", "v": 1989458}, {"d": "2024-12-24", "v": 1989458}, {"d": "2024-12-26", "v": 1989458}, {"d": "2024-12-27", "v": 1989458}, {"d": "2024-12-30", "v": 1989458}, {"d": "2024-12-31", "v": 1989458}, {"d": "2025-01-02", "v": 1989458}, {"d": "2025-01-03", "v": 1989458}, {"d": "2025-01-06", "v": 1989458}, {"d": "2025-01-07", "v": 1989458}, {"d": "2025-01-08", "v": 1989458}, {"d": "2025-01-10", "v": 1989458}, {"d": "2025-01-13", "v": 1989458}, {"d": "2025-01-14", "v": 1989458}, {"d": "2025-01-15", "v": 1989458}, {"d": "2025-01-16", "v": 1989458}, {"d": "2025-01-17", "v": 1989458}, {"d": "2025-01-21", "v": 1989458}, {"d": "2025-01-22", "v": 1989458}, {"d": "2025-01-23", "v": 1991333}, {"d": "2025-01-24", "v": 1994247}, {"d": "2025-01-27", "v": 1994247}, {"d": "2025-01-28", "v": 1994247}, {"d": "2025-01-29", "v": 1994247}, {"d": "2025-01-30", "v": 1994247}, {"d": "2025-01-31", "v": 1976043}, {"d": "2025-02-03", "v": 1953836}, {"d": "2025-02-04", "v": 1953836}, {"d": "2025-02-05", "v": 1953836}, {"d": "2025-02-06", "v": 1953836}, {"d": "2025-02-07", "v": 1953836}, {"d": "2025-02-10", "v": 1953836}, {"d": "2025-02-11", "v": 1953836}, {"d": "2025-02-12", "v": 1953836}, {"d": "2025-02-13", "v": 1953836}, {"d": "2025-02-14", "v": 1953836}, {"d": "2025-02-18", "v": 1953836}, {"d": "2025-02-19", "v": 1953836}, {"d": "2025-02-20", "v": 1955083}, {"d": "2025-02-21", "v": 1936431}, {"d": "2025-02-24", "v": 1936431}, {"d": "2025-02-25", "v": 1933750}, {"d": "2025-02-26", "v": 1940676}, {"d": "2025-02-27", "v": 1940676}, {"d": "2025-02-28", "v": 1940676}, {"d": "2025-03-03", "v": 1940676}, {"d": "2025-03-04", "v": 1940676}, {"d": "2025-03-05", "v": 1940676}, {"d": "2025-03-06", "v": 1940676}, {"d": "2025-03-07", "v": 1940676}, {"d": "2025-03-10", "v": 1940676}, {"d": "2025-03-11", "v": 1940676}, {"d": "2025-03-12", "v": 1940676}, {"d": "2025-03-13", "v": 1940676}, {"d": "2025-03-14", "v": 1940676}, {"d": "2025-03-17", "v": 1940676}, {"d": "2025-03-18", "v": 1940676}, {"d": "2025-03-19", "v": 1941309}, {"d": "2025-03-20", "v": 1936806}, {"d": "2025-03-21", "v": 1936806}, {"d": "2025-03-24", "v": 1936806}, {"d": "2025-03-25", "v": 1934705}, {"d": "2025-03-26", "v": 1929666}, {"d": "2025-03-27", "v": 1929666}, {"d": "2025-03-28", "v": 1929666}, {"d": "2025-03-31", "v": 1929666}, {"d": "2025-04-01", "v": 1929666}, {"d": "2025-04-02", "v": 1929666}, {"d": "2025-04-03", "v": 1929666}, {"d": "2025-04-04", "v": 1929666}, {"d": "2025-04-07", "v": 1929666}, {"d": "2025-04-08", "v": 1929666}, {"d": "2025-04-09", "v": 1929666}, {"d": "2025-04-10", "v": 1929666}, {"d": "2025-04-11", "v": 1929666}, {"d": "2025-04-14", "v": 1929666}, {"d": "2025-04-15", "v": 1929666}, {"d": "2025-04-16", "v": 1929666}, {"d": "2025-04-17", "v": 1929666}, {"d": "2025-04-21", "v": 1929666}, {"d": "2025-04-22", "v": 1929666}, {"d": "2025-04-23", "v": 1929666}, {"d": "2025-04-24", "v": 1929666}, {"d": "2025-04-25", "v": 1929666}, {"d": "2025-04-28", "v": 1929666}, {"d": "2025-04-29", "v": 1929666}, {"d": "2025-04-30", "v": 1929666}, {"d": "2025-05-01", "v": 1913387}, {"d": "2025-05-02", "v": 1957632}, {"d": "2025-05-05", "v": 1956066}, {"d": "2025-05-06", "v": 1956066}, {"d": "2025-05-07", "v": 1948771}, {"d": "2025-05-08", "v": 1937987}, {"d": "2025-05-09", "v": 1937987}, {"d": "2025-05-12", "v": 1937987}, {"d": "2025-05-13", "v": 1945309}, {"d": "2025-05-14", "v": 1955980}, {"d": "2025-05-15", "v": 1955927}, {"d": "2025-05-16", "v": 1955927}, {"d": "2025-05-19", "v": 1965228}, {"d": "2025-05-20", "v": 1957427}, {"d": "2025-05-21", "v": 1957427}, {"d": "2025-05-22", "v": 1954414}, {"d": "2025-05-23", "v": 1965991}, {"d": "2025-05-27", "v": 1965991}, {"d": "2025-05-28", "v": 1965991}, {"d": "2025-05-29", "v": 1965991}, {"d": "2025-05-30", "v": 1958406}, {"d": "2025-06-02", "v": 1980986}, {"d": "2025-06-03", "v": 1980986}, {"d": "2025-06-04", "v": 1980986}, {"d": "2025-06-05", "v": 1980986}, {"d": "2025-06-06", "v": 1983240}, {"d": "2025-06-09", "v": 2000792}, {"d": "2025-06-10", "v": 1997727}, {"d": "2025-06-11", "v": 1997727}, {"d": "2025-06-12", "v": 1997727}, {"d": "2025-06-13", "v": 1997727}, {"d": "2025-06-16", "v": 1997727}, {"d": "2025-06-17", "v": 1979928}, {"d": "2025-06-18", "v": 1996722}, {"d": "2025-06-20", "v": 1996722}, {"d": "2025-06-23", "v": 2016299}, {"d": "2025-06-24", "v": 2048837}, {"d": "2025-06-25", "v": 2048412}, {"d": "2025-06-26", "v": 2048412}, {"d": "2025-06-27", "v": 2042624}, {"d": "2025-06-30", "v": 2057071}, {"d": "2025-07-01", "v": 2057071}, {"d": "2025-07-02", "v": 2067352}, {"d": "2025-07-03", "v": 2078370}, {"d": "2025-07-07", "v": 2048759}, {"d": "2025-07-08", "v": 2048759}, {"d": "2025-07-09", "v": 2047202}, {"d": "2025-07-10", "v": 2063925}, {"d": "2025-07-11", "v": 2063925}, {"d": "2025-07-14", "v": 2063925}, {"d": "2025-07-15", "v": 2058486}, {"d": "2025-07-16", "v": 2057216}, {"d": "2025-07-17", "v": 2057216}, {"d": "2025-07-18", "v": 2046596}, {"d": "2025-07-21", "v": 2066325}, {"d": "2025-07-22", "v": 2066325}, {"d": "2025-07-23", "v": 2066325}, {"d": "2025-07-24", "v": 2059118}, {"d": "2025-07-25", "v": 2057017}, {"d": "2025-07-28", "v": 2057017}, {"d": "2025-07-29", "v": 2057017}, {"d": "2025-07-30", "v": 2057833}, {"d": "2025-07-31", "v": 2041881}, {"d": "2025-08-01", "v": 2041881}, {"d": "2025-08-04", "v": 2041881}, {"d": "2025-08-05", "v": 2041881}, {"d": "2025-08-06", "v": 2046566}, {"d": "2025-08-07", "v": 2050340}, {"d": "2025-08-08", "v": 2050340}, {"d": "2025-08-11", "v": 2044756}, {"d": "2025-08-12", "v": 2059124}, {"d": "2025-08-13", "v": 2059124}, {"d": "2025-08-14", "v": 2056598}, {"d": "2025-08-15", "v": 2051239}, {"d": "2025-08-18", "v": 2051239}, {"d": "2025-08-19", "v": 2051239}, {"d": "2025-08-20", "v": 2051239}, {"d": "2025-08-21", "v": 2051239}, {"d": "2025-08-22", "v": 2051239}, {"d": "2025-08-25", "v": 2042664}, {"d": "2025-08-26", "v": 2037797}, {"d": "2025-08-27", "v": 2037797}, {"d": "2025-08-28", "v": 2037797}, {"d": "2025-08-29", "v": 2035096}, {"d": "2025-09-02", "v": 2031955}, {"d": "2025-09-03", "v": 2031955}, {"d": "2025-09-04", "v": 2031955}, {"d": "2025-09-05", "v": 2031955}, {"d": "2025-09-08", "v": 2031955}, {"d": "2025-09-09", "v": 2031955}, {"d": "2025-09-10", "v": 2031955}, {"d": "2025-09-11", "v": 2031955}, {"d": "2025-09-12", "v": 2031955}, {"d": "2025-09-15", "v": 2031955}, {"d": "2025-09-16", "v": 2031955}, {"d": "2025-09-17", "v": 2030115}, {"d": "2025-09-18", "v": 2045593}, {"d": "2025-09-19", "v": 2045593}, {"d": "2025-09-22", "v": 2045593}, {"d": "2025-09-23", "v": 2041144}, {"d": "2025-09-24", "v": 2022376}, {"d": "2025-09-25", "v": 2022376}, {"d": "2025-09-26", "v": 2025508}, {"d": "2025-09-29", "v": 2025508}, {"d": "2025-09-30", "v": 2028595}, {"d": "2025-10-01", "v": 2053262}, {"d": "2025-10-02", "v": 2068382}, {"d": "2025-10-03", "v": 2069659}, {"d": "2025-10-06", "v": 2071558}, {"d": "2025-10-07", "v": 2071558}, {"d": "2025-10-08", "v": 2083451}, {"d": "2025-10-09", "v": 2071886}, {"d": "2025-10-10", "v": 2071886}, {"d": "2025-10-13", "v": 2071886}, {"d": "2025-10-14", "v": 2084326}, {"d": "2025-10-15", "v": 2105823}, {"d": "2025-10-16", "v": 2119911}, {"d": "2025-10-17", "v": 2119911}, {"d": "2025-10-20", "v": 2119911}, {"d": "2025-10-21", "v": 2107768}, {"d": "2025-10-22", "v": 2117403}, {"d": "2025-10-23", "v": 2117403}, {"d": "2025-10-24", "v": 2117403}, {"d": "2025-10-27", "v": 2117403}, {"d": "2025-10-28", "v": 2128795}, {"d": "2025-10-29", "v": 2160142}, {"d": "2025-10-30", "v": 2151712}, {"d": "2025-10-31", "v": 2151712}, {"d": "2025-11-03", "v": 2151712}, {"d": "2025-11-04", "v": 2151712}, {"d": "2025-11-05", "v": 2151712}, {"d": "2025-11-06", "v": 2139998}, {"d": "2025-11-07", "v": 2113436}, {"d": "2025-11-10", "v": 2113436}, {"d": "2025-11-11", "v": 2113436}, {"d": "2025-11-12", "v": 2113436}, {"d": "2025-11-13", "v": 2086931}, {"d": "2025-11-14", "v": 2066619}, {"d": "2025-11-17", "v": 2066619}, {"d": "2025-11-18", "v": 2066619}, {"d": "2025-11-19", "v": 2066619}, {"d": "2025-11-20", "v": 2066619}, {"d": "2025-11-21", "v": 2066619}, {"d": "2025-11-24", "v": 2066619}, {"d": "2025-11-25", "v": 2066619}, {"d": "2025-11-26", "v": 2066619}, {"d": "2025-11-28", "v": 2066619}, {"d": "2025-12-01", "v": 2066619}, {"d": "2025-12-02", "v": 2066619}, {"d": "2025-12-03", "v": 2066619}, {"d": "2025-12-04", "v": 2066619}, {"d": "2025-12-05", "v": 2066619}, {"d": "2025-12-08", "v": 2066619}, {"d": "2025-12-09", "v": 2069642}, {"d": "2025-12-10", "v": 2084056}, {"d": "2025-12-11", "v": 2084056}, {"d": "2025-12-12", "v": 2057065}, {"d": "2025-12-15", "v": 2055660}, {"d": "2025-12-16", "v": 2055660}, {"d": "2025-12-17", "v": 2055660}, {"d": "2025-12-18", "v": 2055660}, {"d": "2025-12-19", "v": 2055660}, {"d": "2025-12-22", "v": 2055660}, {"d": "2025-12-23", "v": 2065402}, {"d": "2025-12-24", "v": 2086648}, {"d": "2025-12-26", "v": 2090437}, {"d": "2025-12-29", "v": 2100893}, {"d": "2025-12-30", "v": 2100692}, {"d": "2025-12-31", "v": 2100692}, {"d": "2026-01-02", "v": 2100692}, {"d": "2026-01-05", "v": 2100692}, {"d": "2026-01-06", "v": 2100692}, {"d": "2026-01-07", "v": 2094096}, {"d": "2026-01-08", "v": 2090416}, {"d": "2026-01-09", "v": 2090416}, {"d": "2026-01-12", "v": 2104029}, {"d": "2026-01-13", "v": 2089012}, {"d": "2026-01-14", "v": 2089012}, {"d": "2026-01-15", "v": 2089012}, {"d": "2026-01-16", "v": 2098118}, {"d": "2026-01-20", "v": 2085896}, {"d": "2026-01-21", "v": 2085896}, {"d": "2026-01-22", "v": 2085896}, {"d": "2026-01-23", "v": 2085896}, {"d": "2026-01-26", "v": 2085896}, {"d": "2026-01-27", "v": 2085896}, {"d": "2026-01-28", "v": 2085896}, {"d": "2026-01-29", "v": 2085896}, {"d": "2026-01-30", "v": 2085896}, {"d": "2026-02-02", "v": 2105408}, {"d": "2026-02-03", "v": 2137901}, {"d": "2026-02-04", "v": 2139609}, {"d": "2026-02-05", "v": 2139609}, {"d": "2026-02-06", "v": 2139609}, {"d": "2026-02-09", "v": 2156791}, {"d": "2026-02-10", "v": 2144985}, {"d": "2026-02-11", "v": 2144985}, {"d": "2026-02-12", "v": 2157707}, {"d": "2026-02-13", "v": 2172350}, {"d": "2026-02-17", "v": 2172350}, {"d": "2026-02-18", "v": 2187766}, {"d": "2026-02-19", "v": 2202839}, {"d": "2026-02-20", "v": 2224808}, {"d": "2026-02-23", "v": 2224808}, {"d": "2026-02-24", "v": 2224808}, {"d": "2026-02-25", "v": 2224808}, {"d": "2026-02-26", "v": 2242397}, {"d": "2026-02-27", "v": 2245735}, {"d": "2026-03-02", "v": 2245735}, {"d": "2026-03-03", "v": 2245735}, {"d": "2026-03-04", "v": 2245735}, {"d": "2026-03-05", "v": 2245735}, {"d": "2026-03-06", "v": 2245735}, {"d": "2026-03-09", "v": 2245735}, {"d": "2026-03-10", "v": 2245735}, {"d": "2026-03-11", "v": 2245735}, {"d": "2026-03-12", "v": 2245735}, {"d": "2026-03-13", "v": 2245735}, {"d": "2026-03-16", "v": 2245735}, {"d": "2026-03-17", "v": 2245735}, {"d": "2026-03-18", "v": 2245735}, {"d": "2026-03-19", "v": 2245735}, {"d": "2026-03-20", "v": 2245735}, {"d": "2026-03-23", "v": 2245735}, {"d": "2026-03-24", "v": 2245735}, {"d": "2026-03-25", "v": 2245735}, {"d": "2026-03-26", "v": 2245735}, {"d": "2026-03-27", "v": 2245735}, {"d": "2026-03-30", "v": 2245735}, {"d": "2026-03-31", "v": 2245735}, {"d": "2026-04-01", "v": 2245735}, {"d": "2026-04-02", "v": 2245735}, {"d": "2026-04-06", "v": 2245735}, {"d": "2026-04-07", "v": 2245735}, {"d": "2026-04-08", "v": 2245735}, {"d": "2026-04-09", "v": 2245735}, {"d": "2026-04-10", "v": 2245735}, {"d": "2026-04-13", "v": 2245735}, {"d": "2026-04-14", "v": 2245735}, {"d": "2026-04-15", "v": 2246365}, {"d": "2026-04-16", "v": 2269808}, {"d": "2026-04-17", "v": 2302293}, {"d": "2026-04-20", "v": 2302293}, {"d": "2026-04-21", "v": 2272926}, {"d": "2026-04-22", "v": 2333596}, {"d": "2026-04-23", "v": 2310457}, {"d": "2026-04-24", "v": 2310457}, {"d": "2026-04-27", "v": 2310457}, {"d": "2026-04-28", "v": 2313150}, {"d": "2026-04-29", "v": 2317145}, {"d": "2026-04-30", "v": 2353449}, {"d": "2026-05-01", "v": 2361605}, {"d": "2026-05-04", "v": 2361605}, {"d": "2026-05-05", "v": 2361605}, {"d": "2026-05-06", "v": 2361605}, {"d": "2026-05-07", "v": 2361605}, {"d": "2026-05-08", "v": 2361605}, {"d": "2026-05-11", "v": 2361605}, {"d": "2026-05-12", "v": 2330638}, {"d": "2026-05-13", "v": 2330638}, {"d": "2026-05-14", "v": 2330638}, {"d": "2026-05-15", "v": 2329075}, {"d": "2026-05-18", "v": 2296475}, {"d": "2026-05-19", "v": 2296475}, {"d": "2026-05-20", "v": 2296475}, {"d": "2026-05-21", "v": 2296475}, {"d": "2026-05-22", "v": 2269865}, {"d": "2026-05-26", "v": 2371327}, {"d": "2026-05-27", "v": 2371327}, {"d": "2026-05-28", "v": 2417922}, {"d": "2026-05-29", "v": 2417045}, {"d": "2026-06-01", "v": 2417045}, {"d": "2026-06-02", "v": 2430878}, {"d": "2026-06-03", "v": 2425061}, {"d": "2026-06-04", "v": 2425061}, {"d": "2026-06-05", "v": 2425061}, {"d": "2026-06-08", "v": 2425061}, {"d": "2026-06-09", "v": 2425061}, {"d": "2026-06-10", "v": 2425061}, {"d": "2026-06-11", "v": 2425061}, {"d": "2026-06-12", "v": 2425061}, {"d": "2026-06-15", "v": 2425061}, {"d": "2026-06-16", "v": 2425061}, {"d": "2026-06-17", "v": 2436788}, {"d": "2026-06-18", "v": 2481385}, {"d": "2026-06-22", "v": 2481385}, {"d": "2026-06-23", "v": 2501291}, {"d": "2026-06-24", "v": 2504640}, {"d": "2026-06-25", "v": 2504640}, {"d": "2026-06-26", "v": 2504640}, {"d": "2026-06-29", "v": 2504640}, {"d": "2026-06-30", "v": 2504640}, {"d": "2026-07-01", "v": 2504640}, {"d": "2026-07-02", "v": 2504640}, {"d": "2026-07-06", "v": 2504640}, {"d": "2026-07-07", "v": 2504640}, {"d": "2026-07-08", "v": 2504640}, {"d": "2026-07-09", "v": 2504640}, {"d": "2026-07-10", "v": 2504640}, {"d": "2026-07-13", "v": 2504640}, {"d": "2026-07-14", "v": 2504640}, {"d": "2026-07-15", "v": 2504640}, {"d": "2026-07-16", "v": 2504640}, {"d": "2026-07-17", "v": 2504640}, {"d": "2026-07-20", "v": 2504640}, {"d": "2026-07-21", "v": 2504640}, {"d": "2026-07-22", "v": 2504640}, {"d": "2026-07-23", "v": 2504640}, {"d": "2026-07-24", "v": 2504640}, {"d": "2026-07-27", "v": 2504640}, {"d": "2026-07-28", "v": 2504640}, {"d": "2026-07-29", "v": 2504640}, {"d": "2026-07-30", "v": 2504640}, {"d": "2026-07-31", "v": 2504640}, {"d": "2026-08-03", "v": 2504640}, {"d": "2026-08-04", "v": 2504640}, {"d": "2026-08-05", "v": 2504640}, {"d": "2026-08-06", "v": 2504640}, {"d": "2026-08-07", "v": 2504640}, {"d": "2026-08-10", "v": 2504640}, {"d": "2026-08-11", "v": 2504640}, {"d": "2026-08-12", "v": 2504640}, {"d": "2026-08-13", "v": 2504640}, {"d": "2026-08-14", "v": 2504640}, {"d": "2026-08-17", "v": 2504640}, {"d": "2026-08-18", "v": 2504640}, {"d": "2026-08-19", "v": 2504640}, {"d": "2026-08-20", "v": 2504640}, {"d": "2026-08-21", "v": 2504640}, {"d": "2026-08-24", "v": 2504640}, {"d": "2026-08-25", "v": 2504640}, {"d": "2026-08-26", "v": 2504640}, {"d": "2026-08-27", "v": 2504640}, {"d": "2026-08-28", "v": 2504640}, {"d": "2026-08-31", "v": 2504640}, {"d": "2026-09-01", "v": 2504640}, {"d": "2026-09-02", "v": 2504640}, {"d": "2026-09-03", "v": 2504640}, {"d": "2026-09-04", "v": 2504640}, {"d": "2026-09-08", "v": 2504640}, {"d": "2026-09-09", "v": 2511293}, {"d": "2026-09-10", "v": 2480038}, {"d": "2026-09-11", "v": 2480038}, {"d": "2026-09-14", "v": 2480038}, {"d": "2026-09-15", "v": 2480038}, {"d": "2026-09-16", "v": 2480038}, {"d": "2026-09-17", "v": 2480038}, {"d": "2026-09-18", "v": 2480038}, {"d": "2026-09-21", "v": 2480038}, {"d": "2026-09-22", "v": 2480038}, {"d": "2026-09-23", "v": 2458281}]}</script>
+<script>
+(function () {
+  "use strict";
+  var D = JSON.parse(document.getElementById("payload").textContent);
+  var S = D.summary, C = D.current, T = D.trades;
+
+  var pct = function (v, d) { return (v >= 0 ? "+" : "") + (v * 100).toFixed(d === undefined ? 2 : d) + "%"; };
+  var won = function (v) { return (v >= 0 ? "+" : "-") + Math.abs(Math.round(v)).toLocaleString("ko-KR") + "원"; };
+  var cls = function (v) { return v >= 0 ? "up" : "down"; };
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ── 헤더 ─────────────────────────────────────── */
+  $("asof").textContent = D.generated + " 기준 · 최근 3년";
+  $("hN").textContent = S.n;
+  $("hTot").textContent = pct(S.total);
+  $("hWr").textContent = Math.round(S.winRate * 100) + "%";
+  $("hPf").textContent = S.pf.toFixed(2);
+  $("hMdd").textContent = pct(S.mdd, 1);
+  $("foot").textContent = D.symbol + " · " + D.generated;
+
+  var STATS = [
+    { k: "누적 수익률", v: pct(S.total), c: cls(S.total), n: "원화, 전 비용 반영" },
+    { k: "매매 횟수", v: String(S.n), c: "", n: S.wins + "승 " + (S.n - S.wins) + "패" },
+    { k: "손익비", v: S.pf.toFixed(2), c: S.pf >= 1 ? "up" : "down", n: "총이익 ÷ 총손실" },
+    { k: "최대 낙폭", v: pct(S.mdd, 1), c: "down", n: "자산 고점 대비" },
+    { k: "샤프", v: S.sharpe.toFixed(2), c: "", n: "위험 대비 수익" },
+    { k: "평균 보유", v: S.avgDays.toFixed(1), c: "", n: "거래일" }
+  ];
+  $("strip").innerHTML = STATS.map(function (s) {
+    return '<div class="stat"><div class="k">' + s.k + '</div>' +
+      '<div class="v ' + s.c + '">' + s.v + '</div><div class="n">' + s.n + '</div></div>';
+  }).join("");
+
+  /* ── 01 현재 판정 ──────────────────────────────── */
+  var gap = C.ema10 / C.ema30 - 1;
+  var blocked = C.ema10 <= C.ema30;
+  $("vtxt").textContent = blocked ? "진입 보류 · 8개 중 7개 통과" : "진입 조건 충족";
+  $("gEma10").textContent = "$" + C.ema10.toFixed(2);
+  $("gEma30").textContent = "$" + C.ema30.toFixed(2);
+  $("gnote").innerHTML = blocked
+    ? "격차 <b>" + pct(gap) + "</b>. EMA10이 EMA30 위로 올라서야 열린다. " +
+      "주가가 빠지면 오히려 멀어지는 구조라, 이 필터는 저점이 아니라 <b>추세 확인 지점</b>에서 열린다."
+    : "정배열이 완성됐다.";
+
+  var CHECKS = [
+    ["변동성 레짐", true, "ATR " + (C.atrPct * 100).toFixed(1) + "%"],
+    ["추세 방향", !blocked, "EMA10 " + (blocked ? "<" : ">") + " EMA30"],
+    ["모멘텀(RSI)", true, C.rsi.toFixed(0)],
+    ["추세 강도(ADX)", true, C.adx.toFixed(1)],
+    ["시가 갭", true, "정상"],
+    ["유동성", true, "충분"],
+    ["환율 추세", true, "정상"],
+    ["리스크 한도", true, "여유"]
+  ];
+  $("checks").innerHTML = CHECKS.map(function (c) {
+    return '<li><span class="chk ' + (c[1] ? "ok" : "no") + '">' + (c[1] ? "✓" : "✕") + '</span>' +
+      '<span class="nm">' + c[0] + '</span><span class="vl">' + c[2] + "</span></li>";
+  }).join("");
+
+  /* ── 02 차트 ──────────────────────────────────── */
+  var N = D.next || {}, P = D.plan || {};
+  var money = function (v) { return "$" + Number(v).toFixed(2); };
+  $("nextOpen").textContent = N.openKst || "—";
+  var COND = [
+    ["종가 조건", money(N.thresholdClose), "이 아래로 마감하면 추세 정배열이 깨져 신호가 없다"],
+    ["시가 갭 허용", money(N.gapLow) + " ~ " + money(N.gapHigh),
+      "전일 종가 " + money(N.lastClose) + " 대비 ±10%. 벗어나면 체결 품질 때문에 건너뛴다"],
+    ["체결 시점", "다음 거래일 시가", "신호가 난 날이 아니라 그 다음 거래일에 산다"],
+    ["1차 수량", (P.tranches && P.tranches.length ? P.tranches[0] : 0) + "주",
+      "총 " + (P.totalQty || 0) + "주 계획 중 첫 분할 · 약 " +
+      Math.round((P.notional || 0) / 10000) + "만원"]
+  ];
+  $("cond").innerHTML = COND.map(function (c) {
+    return '<div class="cond"><div class="ck">' + c[0] + '</div>' +
+      '<div class="cv">' + c[1] + '</div><div class="cn">' + c[2] + '</div></div>';
+  }).join("");
+
+  var sell = '<div class="sellrow"><span class="sk">손절</span>' +
+    '<span class="sp down">' + money(P.stop) + '</span>' +
+    '<span class="sq">전량</span></div>';
+  sell += (P.tp || []).map(function (t) {
+    return '<div class="sellrow"><span class="sk">원화 +' + Math.round(t.k * 100) + '%</span>' +
+      '<span class="sp up">' + money(t.price) + '</span>' +
+      '<span class="sq">' + Math.round((P.totalQty || 0) * t.f) + '주</span></div>';
+  }).join("");
+  $("selllist").innerHTML = sell;
+
+  $("buylist").innerHTML = (P.scaleIn || []).map(function (s, i) {
+    var qty = P.tranches && P.tranches[i] ? P.tranches[i] : 0;
+    return '<div class="sellrow"><span class="sk">' + (i + 1) + '차 ' +
+      Math.round(s.w * 100) + '%</span>' +
+      '<span class="sp">' + (i === 0 ? "시가" : money(s.price) + " 이하") + '</span>' +
+      '<span class="sq">' + qty + '주</span></div>';
+  }).join("");
+
+  var SVG = "http://www.w3.org/2000/svg";
+  var svg = $("svg"), W = 1000, H = 380, PAD = { t: 26, r: 14, b: 26, l: 48 };
+  var px = D.price;
+  var lo = Math.min.apply(null, px.map(function (p) { return p.c; }));
+  var hi = Math.max.apply(null, px.map(function (p) { return p.c; }));
+  var span = hi - lo || 1;
+  lo -= span * 0.08; hi += span * 0.08;
+  var X = function (i) { return PAD.l + (i / (px.length - 1)) * (W - PAD.l - PAD.r); };
+  var Y = function (v) { return PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b); };
+  var idxOf = {}; px.forEach(function (p, i) { idxOf[p.d] = i; });
+
+  function el(n, a) {
+    var e = document.createElementNS(SVG, n);
+    for (var k in a) { e.setAttribute(k, a[k]); }
+    return e;
+  }
+
+  // 눈금
+  var ticks = 5, g = el("g", {});
+  for (var t = 0; t <= ticks; t++) {
+    var v = lo + (hi - lo) * t / ticks, y = Y(v);
+    g.appendChild(el("line", { x1: PAD.l, x2: W - PAD.r, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": 1 }));
+    var lb = el("text", { x: PAD.l - 8, y: y + 3.5, "text-anchor": "end", fill: "var(--ink-3)",
+      "font-size": 10, "font-family": "var(--f-mono)" });
+    lb.textContent = "$" + v.toFixed(0);
+    g.appendChild(lb);
+  }
+  svg.appendChild(g);
+
+  // 익절 계단 — 최근 진입가 기준으로 그린다(구조를 보여주는 장치)
+  var base = C.price, rungs = el("g", {});
+  D.ladder.forEach(function (r) {
+    var p = base * (1 + r.k), y = Y(p);
+    if (y < PAD.t || y > H - PAD.b) { return; }
+    rungs.appendChild(el("line", { x1: PAD.l, x2: W - PAD.r, y1: y, y2: y,
+      stroke: "var(--gold)", "stroke-width": 1, "stroke-dasharray": "2 5", opacity: .55 }));
+    var lb = el("text", { x: W - PAD.r - 2, y: y - 4, "text-anchor": "end", fill: "var(--gold)",
+      "font-size": 9.5, "font-family": "var(--f-mono)", opacity: .9 });
+    lb.textContent = "+" + Math.round(r.k * 100) + "% · " + Math.round(r.f * 100) + "% 매도";
+    rungs.appendChild(lb);
+  });
+  svg.appendChild(rungs);
+
+  // 주가 선
+  var dPath = px.map(function (p, i) { return (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.c).toFixed(1); }).join(" ");
+  var line = el("path", { d: dPath, fill: "none", stroke: "var(--wave)", "stroke-width": 1.4,
+    "stroke-linejoin": "round", "stroke-linecap": "round", class: "draw" });
+  svg.appendChild(line);
+  var L = line.getTotalLength ? line.getTotalLength() : 0;
+  if (L) {
+    line.style.strokeDasharray = L; line.style.strokeDashoffset = L;
+    requestAnimationFrame(function () {
+      line.style.transition = "stroke-dashoffset 1.7s cubic-bezier(.3,.8,.3,1)";
+      line.style.strokeDashoffset = 0;
+    });
+  }
+
+  // 매매 표식
+  var marks = el("g", {});
+  svg.appendChild(marks);
+  var nodes = [];
+  T.forEach(function (tr, n) {
+    var i = idxOf[tr.open];
+    if (i === undefined) { return; }
+    var cx = X(i), cy = Y(tr.entry), col = tr.win ? "var(--gain)" : "var(--loss)";
+    var c = el("circle", { cx: cx, cy: cy, r: 0, fill: col, "fill-opacity": .82,
+      stroke: "var(--panel)", "stroke-width": 1.5, "data-i": n, style: "cursor:pointer" });
+    marks.appendChild(c);
+    nodes.push(c);
+    setTimeout(function () {
+      c.style.transition = "r .4s cubic-bezier(.2,1.4,.4,1)";
+      c.setAttribute("r", 4.2);
+    }, 900 + n * 11);
+  });
+
+  // 툴팁
+  var tip = $("tip");
+  function showTip(ev, n) {
+    var tr = T[n];
+    tip.innerHTML = '<div class="tt">' + tr.open + " → " + tr.close + " · " + tr.days + "일</div>" +
+      '<div class="tr"><span>진입 / 청산</span><b>$' + tr.entry.toFixed(2) + " → $" + tr.exit.toFixed(2) + "</b></div>" +
+      '<div class="tr"><span>달러</span><b class="' + cls(tr.usd) + '">' + pct(tr.usd) + "</b></div>" +
+      '<div class="tr"><span>환율</span><b class="' + cls(tr.fx) + '">' + pct(tr.fx) + "</b></div>" +
+      '<div class="tr"><span>원화</span><b class="' + cls(tr.krw) + '">' + pct(tr.krw) + "</b></div>" +
+      '<div class="tr"><span>손익</span><b class="' + cls(tr.pnl) + '">' + won(tr.pnl) + "</b></div>";
+    tip.style.opacity = 1;
+    tip.setAttribute("aria-hidden", "false");
+    var r = tip.getBoundingClientRect();
+    var x = Math.min(ev.clientX + 14, window.innerWidth - r.width - 10);
+    var y = Math.min(ev.clientY + 14, window.innerHeight - r.height - 10);
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  function hideTip() { tip.style.opacity = 0; tip.setAttribute("aria-hidden", "true"); }
+
+  marks.addEventListener("mousemove", function (ev) {
+    var n = ev.target.getAttribute && ev.target.getAttribute("data-i");
+    if (n === null || n === undefined) { return; }
+    showTip(ev, +n);
+    highlightRow(+n);
+  });
+  marks.addEventListener("mouseleave", function () { hideTip(); highlightRow(-1); });
+
+  // 필터
+  function applyFilter(f) {
+    nodes.forEach(function (c) {
+      var tr = T[+c.getAttribute("data-i")];
+      var on = f === "all" || (f === "win" && tr.win) || (f === "loss" && !tr.win) ||
+        (f === "big" && tr.krw >= 0.10);
+      c.setAttribute("fill-opacity", on ? .82 : .07);
+      c.setAttribute("r", on ? 4.2 : 2.4);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (b) {
+    b.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (o) {
+        o.setAttribute("aria-pressed", String(o === b));
+      });
+      applyFilter(b.getAttribute("data-f"));
+    });
+  });
+
+  /* ── 03 원장 ──────────────────────────────────── */
+  $("lN").textContent = S.n;
+  var RSN = {
+    TAKE_PROFIT_LADDER: "익절 계단", HARD_STOP_KRW: "원화 하드스톱",
+    HARD_STOP_USD: "USD 손절", TRAILING_STOP: "트레일링", BREAKEVEN_STOP: "본전 스톱",
+    TIME_STOP: "보유기간 만료", REGIME_EXIT: "레짐 청산", KILL_SWITCH: "킬스위치",
+    END_OF_BACKTEST: "기간 종료"
+  };
+  var sortKey = "open", sortDir = -1;
+  function render() {
+    var rows = T.slice().sort(function (a, b) {
+      var x = a[sortKey], y = b[sortKey];
+      if (x < y) { return -sortDir; }
+      if (x > y) { return sortDir; }
+      return 0;
+    });
+    $("tbody").innerHTML = rows.map(function (tr) {
+      var n = T.indexOf(tr);
+      return '<tr data-i="' + n + '">' +
+        "<td>" + tr.open + '<span class="rsn"> → ' + tr.close.slice(5) + "</span></td>" +
+        '<td class="num">' + tr.days + "</td>" +
+        '<td class="num">$' + tr.entry.toFixed(2) + "</td>" +
+        '<td class="num">$' + tr.exit.toFixed(2) + "</td>" +
+        '<td class="num ' + cls(tr.usd) + '">' + pct(tr.usd) + "</td>" +
+        '<td class="num ' + cls(tr.fx) + '">' + pct(tr.fx) + "</td>" +
+        '<td class="num"><span class="pill ' + (tr.win ? "w" : "l") + '">' + pct(tr.krw) + "</span></td>" +
+        '<td class="num ' + cls(tr.pnl) + '">' + won(tr.pnl) + "</td>" +
+        '<td class="rsn" style="text-align:left">' +
+        tr.reasons.map(function (r) { return RSN[r] || r; }).join(" · ") + "</td></tr>";
+    }).join("");
+  }
+  render();
+  Array.prototype.forEach.call(document.querySelectorAll("th[data-s]"), function (th) {
+    th.addEventListener("click", function () {
+      var k = th.getAttribute("data-s");
+      sortDir = (k === sortKey) ? -sortDir : -1;
+      sortKey = k;
+      Array.prototype.forEach.call(document.querySelectorAll("th[data-s]"), function (o) {
+        o.removeAttribute("aria-sort");
+      });
+      th.setAttribute("aria-sort", sortDir === 1 ? "ascending" : "descending");
+      render();
+    });
+  });
+  function highlightRow(n) {
+    Array.prototype.forEach.call(document.querySelectorAll("#tbody tr"), function (r) {
+      r.classList.toggle("hot", +r.getAttribute("data-i") === n);
+    });
+  }
+  $("tbody").addEventListener("mouseover", function (ev) {
+    var tr = ev.target.closest ? ev.target.closest("tr") : null;
+    if (tr) {
+      var n = +tr.getAttribute("data-i");
+      nodes.forEach(function (c) {
+        c.setAttribute("r", +c.getAttribute("data-i") === n ? 7 : 4.2);
+      });
+    }
+  });
+  $("tbody").addEventListener("mouseleave", function () {
+    nodes.forEach(function (c) { c.setAttribute("r", 4.2); });
+  });
+
+  /* ── 04 분해 ──────────────────────────────────── */
+  var sumUsd = 0, sumFx = 0, sumKrw = 0;
+  T.forEach(function (t) { sumUsd += t.usd; sumFx += t.fx; sumKrw += t.krw; });
+  var avgUsd = sumUsd / T.length, avgFx = sumFx / T.length, avgKrw = sumKrw / T.length;
+  var costAvg = avgKrw - avgUsd - avgFx;
+  var DEC = [
+    { k: "달러 주가", v: avgUsd, c: "var(--gain)" },
+    { k: "환율", v: avgFx, c: "var(--loss)" },
+    { k: "거래 비용", v: costAvg, c: "var(--ink-3)" },
+    { k: "원화 합계", v: avgKrw, c: "var(--gold)" }
+  ];
+  var mx = Math.max.apply(null, DEC.map(function (d) { return Math.abs(d.v); })) || 1;
+  $("dec").innerHTML = DEC.map(function (d) {
+    return '<div class="drow"><span class="dk">' + d.k + "</span>" +
+      '<span class="dbar"><i data-w="' + (Math.abs(d.v) / mx * 100) + '" style="background:' + d.c +
+      ";" + (d.v < 0 ? "right:50%" : "left:50%") + '"></i></span>' +
+      '<span class="dv ' + cls(d.v) + '">' + pct(d.v) + "</span></div>";
+  }).join("");
+
+  /* ── 05 검증 ──────────────────────────────────── */
+  $("folds").innerHTML = S.wf.map(function (v, i) {
+    return '<div class="fold"><div class="fk">구간 ' + (i + 1) + " / 4</div>" +
+      '<div class="fv ' + cls(v) + '">' + pct(v, 1) + "</div></div>";
+  }).join("") +
+    '<div class="fold" style="border-color:var(--gold)"><div class="fk">양수 구간</div>' +
+    '<div class="fv" style="color:var(--gold)">' + S.wfPos + " / 4</div></div>";
+  $("ciTxt").textContent = pct(S.ciLow) + " ~ " + pct(S.ciHigh);
+
+  /* ── 연출 ─────────────────────────────────────── */
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) { return; }
+      e.target.classList.add("in");
+      io.unobserve(e.target);
+      Array.prototype.forEach.call(e.target.querySelectorAll(".dbar i"), function (b) {
+        setTimeout(function () { b.style.width = (b.getAttribute("data-w") / 2) + "%"; }, 120);
+      });
+    });
+  }, { threshold: .12 });
+  Array.prototype.forEach.call(document.querySelectorAll(".rise"), function (n) { io.observe(n); });
+
+  setTimeout(function () {
+    $("gfill").style.width = Math.max(4, Math.min(100, (1 + gap / 0.06) * 50)) + "%";
+  }, 400);
+
+  /* ── 테마 ─────────────────────────────────────── */
+  var root = document.documentElement;
+  try {
+    var saved = localStorage.getItem("koru-theme");
+    if (saved) { root.setAttribute("data-theme", saved); }
+  } catch (e) { /* 저장소 차단 환경 */ }
+  $("theme").addEventListener("click", function () {
+    var cur = root.getAttribute("data-theme");
+    var sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var next = cur ? (cur === "dark" ? "light" : "dark") : (sysDark ? "light" : "dark");
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("koru-theme", next); } catch (e) { /* 무시 */ }
+  });
+}());
+</script>

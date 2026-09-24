@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KORU</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  --ground:#F6F7F9; --panel:#FFFFFF; --line:#DDE1E9;
+  --ink-1:#12151C; --ink-2:#4A5265; --ink-3:#79809A; --gold:#8A6420;
+  --f-body:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+  --f-mono:ui-monospace,"Cascadia Mono",monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0C0E14; --panel:#131722; --line:#262C3B;
+    --ink-1:#EEF1F6; --ink-2:#A2AABC; --ink-3:#6E7688; --gold:#D4A24C;
+  }
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--ground); color:var(--ink-1);
+  font-family:var(--f-body); font-size:15px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; }
+.wrap { max-width:720px; margin:0 auto; padding:64px 24px 80px; }
+.eyebrow { font-family:var(--f-mono); font-size:11px; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+h1 { font-size:clamp(30px,6vw,44px); line-height:1.1; letter-spacing:-.02em;
+  margin:0 0 14px; font-weight:600; }
+.lede { color:var(--ink-2); margin:0 0 40px; max-width:56ch; }
+a.card { display:block; background:var(--panel); border:1px solid var(--line);
+  border-radius:3px; padding:22px; margin-bottom:14px; text-decoration:none;
+  color:inherit; transition:border-color .16s; }
+a.card:hover { border-color:var(--ink-3); }
+a.card h2 { margin:0 0 5px; font-size:17px; font-weight:600; }
+a.card p { margin:0; color:var(--ink-2); font-size:14px; }
+.meta { font-family:var(--f-mono); font-size:11.5px; color:var(--ink-3);
+  margin-top:36px; padding-top:20px; border-top:1px solid var(--line);
+  line-height:1.9; }
+.meta b { color:var(--ink-2); font-weight:500; }
+</style>
+<div class="wrap">
+  <div class="eyebrow">Direxion Daily MSCI South Korea Bull 3X</div>
+  <h1>KORU</h1>
+  <p class="lede">
+    3배 레버리지 ETF 를 규칙으로만 매매하는 시스템의 현재 상태와 과거 기록.
+    사람이 그때그때 판단하지 않도록, 살 자격과 팔 이유를 미리 정해 두고 그대로 따른다.
+  </p>
+  <a class="card" href="desk.html"><h2>상황실</h2><p>지금 살 수 있는 상태인지, 규칙이 무엇인지</p></a>
+  <a class="card" href="signals.html"><h2>신호 원장</h2><p>3년치 매매 이력과 검증 결과</p></a>
+  <div class="meta">
+    <b>기준 봉</b> 2026-09-23 &nbsp;·&nbsp; <b>갱신</b> 2026-09-24 12:22 (한국시간)<br>
+    <b>기준 자본</b> 100만원 환산 &nbsp;·&nbsp; 실제 운용액이 아니다<br>
+    <b>주의</b> 투자 권유가 아니다. 3배 상품은 방향과 무관하게 매일 녹는다.
+  </div>
+</div>
