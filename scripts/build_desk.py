@@ -210,10 +210,127 @@ def build_payload(
             "maxHold": cfg.max_holding_days,
             "stopAtr": cfg.stop_atr_multiple,
             "maxStopPct": cfg.max_stop_pct,
+            "minStopPct": cfg.min_stop_pct,
             "capital": cfg.capital_krw,
             "maxPos": cfg.risk.max_position_krw,
             "ladder": [{"k": s.krw_return, "f": s.sell_fraction} for s in cfg.take_profit],
             "scaleIn": [{"m": s.atr_multiple, "w": s.weight} for s in cfg.scale_in],
+            # 초록불 기준. 화면의 판정 옆에 "무엇을 넘어야 하는지" 를 같이
+            # 보여주지 않으면, 막혔을 때 얼마나 모자란지 알 수가 없다.
+            "gate": [
+                {
+                    "n": "추세방향",
+                    "w": f"종가 > EMA{cfg.ema_fast} > EMA{cfg.ema_slow}",
+                    "why": "내려가는 중에는 안 산다. 3배라 손실도 3배다",
+                },
+                {
+                    "n": "변동성레짐",
+                    "w": f"ATR/종가 ≤ {cfg.max_atr_pct:.0%}",
+                    "why": "하루 진폭이 익절폭보다 크면 익절·손절이 구분되지 않는다",
+                },
+                {
+                    "n": "모멘텀(RSI)",
+                    "w": f"RSI{cfg.rsi_period} {cfg.min_rsi:.0f}~{cfg.max_rsi:.0f}",
+                    "why": "너무 눌렸거나 너무 달아오른 구간을 뺀다",
+                },
+                {
+                    "n": "추세강도(ADX)",
+                    "w": f"ADX14 ≥ {cfg.min_adx:.0f}",
+                    "why": "방향 없이 흔들리는 장을 거른다",
+                },
+                {
+                    "n": "시가갭",
+                    "w": f"시가 갭 ≤ ±{cfg.max_gap_pct:.0%}",
+                    "why": "갭이 크면 손절선을 뛰어넘고 열린다",
+                },
+                {
+                    "n": "유동성",
+                    "w": f"20일 평균 거래대금 ≥ ${cfg.min_avg_dollar_volume:,.0f}",
+                    "why": "못 팔고 갇히는 것을 막는다",
+                },
+                {
+                    "n": "환율추세",
+                    "w": f"USD/KRW 20일 변화 ≥ {cfg.max_fx_decline:.0%}",
+                    "why": "주가가 올라도 환율이 빠지면 원화로는 손실이다",
+                },
+                {
+                    "n": "데이터충분성",
+                    "w": f"봉 {cfg.warmup_bars}개 이상",
+                    "why": "지표가 덜 데워진 상태로 판단하지 않는다",
+                },
+            ],
+            # 매도 사유. 우선순위 순서 그대로다(strategy._decide_open).
+            "exits": [
+                {
+                    "n": "원화 하드스톱",
+                    "w": f"원화 수익률 ≤ {cfg.hard_stop_krw_return:+.0%}",
+                    "q": "전량",
+                },
+                {
+                    "n": "달러 손절선",
+                    "w": f"진입가 −{cfg.stop_atr_multiple:g}×ATR "
+                    f"({cfg.min_stop_pct:.0%}~{cfg.max_stop_pct:.0%})",
+                    "q": "전량",
+                },
+                {
+                    "n": "본전 스톱",
+                    "w": f"익절 {cfg.breakeven_stop_after_tp}단 후 본전 아래로",
+                    "q": "전량",
+                },
+                {
+                    "n": "트레일링",
+                    "w": f"익절 {cfg.trailing_after_tp}단 후 고점 대비 "
+                    f"{cfg.trailing_giveback:.0%} 반납",
+                    "q": "전량",
+                },
+                {
+                    "n": "추세 꺾임",
+                    "w": (
+                        f"이익 중({cfg.trend_break_min_krw_return:.2%} 초과) "
+                        f"종가가 EMA{cfg.ema_fast} 아래"
+                        if cfg.trend_break_min_krw_return is not None
+                        else "꺼짐"
+                    ),
+                    "q": "전량",
+                },
+                {"n": "보유기간 만료", "w": f"{cfg.max_holding_days}영업일 경과", "q": "전량"},
+                {"n": "분할 익절", "w": "아래 계단 도달", "q": "일부"},
+            ],
+            # 지표 용어. 조건표에 ATR·EMA·RSI·ADX 가 그냥 나오면 읽을 수가 없다.
+            "glossary": [
+                {
+                    "t": "EMA",
+                    "f": "지수이동평균",
+                    "d": f"최근 가격에 더 무게를 준 평균값. EMA{cfg.ema_fast} 는 "
+                    f"최근 {cfg.ema_fast}일, EMA{cfg.ema_slow} 는 {cfg.ema_slow}일 평균이다. "
+                    "가격이 평균 위면 오르는 중, 아래면 내리는 중으로 본다.",
+                    "now": "지금 가격이 EMA10 아래면 빨간불이다",
+                },
+                {
+                    "t": "ATR",
+                    "f": "평균 진폭",
+                    "d": "하루에 위아래로 보통 얼마나 움직이는지를 잰 값. "
+                    "ATR 이 $2 면 이 종목은 하루에 대략 2달러쯤 흔들린다는 뜻이다. "
+                    "손절 폭과 분할매수 간격을 여기에 맞춰 잡는다.",
+                    "now": "변동이 클수록 손절선을 넓게, 작을수록 좁게 잡는다",
+                },
+                {
+                    "t": "RSI",
+                    "f": "상대강도지수",
+                    "d": "최근 오른 날의 힘과 내린 날의 힘을 견준 값. 0~100 이고 "
+                    "50 이 중립이다. 너무 높으면 달아오른 상태, 너무 낮으면 "
+                    "과하게 눌린 상태로 본다.",
+                    "now": f"{cfg.min_rsi:.0f}~{cfg.max_rsi:.0f} 구간에서만 산다",
+                },
+                {
+                    "t": "ADX",
+                    "f": "추세강도지수",
+                    "d": "방향이 얼마나 뚜렷한지만 재는 값. 위로 가는지 아래로 "
+                    "가는지는 말해 주지 않고, 세기만 알려준다. 낮으면 방향 없이 "
+                    "흔들리는 장이다.",
+                    "now": f"하한 {cfg.min_adx:.0f} — 지금 설정은 사실상 이 조건을 안 쓴다",
+                },
+            ],
         },
         "recent": recent,
     }

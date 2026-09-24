@@ -235,8 +235,35 @@ footer a { color:var(--ink-2); }
     </div>
   </section>
 
+  <section id="rules">
+    <div class="shead"><span class="snum">03</span><h2>규칙</h2></div>
+    <p class="sdesc">
+      초록불은 아래 8개가 <strong>전부</strong> 통과한 상태다. 하나라도 막히면 빨간불이고 사지 않는다.
+      매도는 7가지 사유 중 먼저 걸리는 것으로 나간다.
+    </p>
+    <div class="card" style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:12px">초록불 조건 — 살 수 있는 자격</div>
+      <table id="gateRules"></table>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">매도 사유 (위에서부터 먼저 본다)</div>
+        <table id="exitRules"></table>
+      </div>
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">매수 분할 · 익절 계단</div>
+        <table id="sizeRules"></table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">용어</div>
+      <p class="note" style="margin:0 0 14px">위 표에 나오는 줄임말이다.</p>
+      <div id="glossary"></div>
+    </div>
+  </section>
+
   <section id="ask">
-    <div class="shead"><span class="snum">03</span><h2>물어보기</h2></div>
+    <div class="shead"><span class="snum">04</span><h2>물어보기</h2></div>
     <p class="sdesc">
       위 숫자와 이 전략의 규칙을 근거로 답한다. 시세를 새로 조회하거나 주문을 내지는 않는다.
     </p>
@@ -332,6 +359,58 @@ footer a { color:var(--ink-2); }
 
   /* ── 02 포지션 ────────────────────────── */
   var C = D.cost, R = D.rules;
+
+  /* ── 03 규칙 ──────────────────────────
+     판정(01)은 "지금 통과했나" 만 보여준다. 기준을 같이 적지 않으면
+     막혔을 때 얼마나 모자란지 알 수가 없다. */
+  (function () {
+    var by = {};
+    D.checks.forEach(function (c) { by[c.name] = c.ok; });
+    $("gateRules").innerHTML =
+      "<tr><th>조건</th><th>통과 기준</th><th>왜</th><th>지금</th></tr>" +
+      R.gate.map(function (g) {
+        var ok = by[g.n];
+        var mark = ok === undefined ? "—"
+          : '<span class="chk ' + (ok ? "ok" : "no") + '" style="display:inline-grid">' +
+            (ok ? "O" : "X") + "</span>";
+        return "<tr><td>" + g.n + '</td><td class="num">' + g.w +
+          '</td><td style="white-space:normal;color:var(--ink-3);font-size:12px">' + g.why +
+          '</td><td class="num">' + mark + "</td></tr>";
+      }).join("");
+
+    $("exitRules").innerHTML =
+      "<tr><th>사유</th><th>조건</th><th>수량</th></tr>" +
+      R.exits.map(function (e) {
+        return "<tr><td>" + e.n + '</td><td class="num" style="white-space:normal">' + e.w +
+          '</td><td class="num">' + e.q + "</td></tr>";
+      }).join("");
+
+    var buy = R.scaleIn.map(function (s, i) {
+      var when = s.m === 0 ? "신호 나면 바로"
+        : "진입가 −" + s.m + "×ATR 로 밀릴 때";
+      return "<tr><td>매수 " + (i + 1) + "차</td><td class=\"num\">" +
+        Math.round(s.w * 100) + '%</td><td class="num" style="white-space:normal">' +
+        when + "</td></tr>";
+    }).join("");
+    var sell = R.ladder.map(function (t, i) {
+      return "<tr><td>익절 " + (i + 1) + '단</td><td class="num">' +
+        Math.round(t.f * 100) + '%</td><td class="num">원화 +' +
+        Math.round(t.k * 100) + "% 도달</td></tr>";
+    }).join("");
+    $("sizeRules").innerHTML =
+      "<tr><th>단계</th><th>비중</th><th>시점</th></tr>" + buy + sell;
+
+    $("glossary").innerHTML = R.glossary.map(function (g) {
+      return '<div style="padding:12px 0;border-bottom:1px solid var(--line-2)">' +
+        '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:5px">' +
+        '<span style="font-family:var(--f-mono);font-weight:600;font-size:13px;' +
+        'letter-spacing:.06em">' + g.t + "</span>" +
+        '<span style="font-size:12px;color:var(--ink-3)">' + g.f + "</span></div>" +
+        '<div style="font-size:13.5px;color:var(--ink-2);line-height:1.62">' + g.d + "</div>" +
+        '<div style="font-size:12px;color:var(--gold);margin-top:5px">이 전략에서는 &middot; ' +
+        g.now + "</div></div>";
+    }).join("");
+  })();
   /* pnl.krw_cost / krw_proceeds 를 주당 기준으로 그대로 옮긴 것.
      매수측 요율을 매도에도 쓰던 시절 저장소 엔진과 갈라졌다(대칭 설정에서도 0.29%p,
      환전 우대가 없는 설정이면 0.4%p 이상). 수수료·SEC·주당 정액 TAF·양쪽 환전
