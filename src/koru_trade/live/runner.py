@@ -103,6 +103,7 @@ class LiveRunner:
         self._store = store
         self._cfg = cfg
         self._notifier: SignalNotifier = notifier or NullNotifier()
+        self._last_bar_ts: dt.datetime | None = store.last_decision_ts()
 
     def _notify(self, text: str, *, key: str | None = None) -> NotifyResult:
         """알림을 보낸다. 실패해도 매매 루프는 계속된다.
@@ -136,6 +137,40 @@ class LiveRunner:
         cfg = self._cfg
         last = bars[-1]
         ts = now or last.ts
+
+        # 시세가 과거로 되돌아가면 판단을 건너뛴다.
+        #
+        # 제공자가 어제 봉의 종가를 뒤늦게 채워 넣는 동안 오늘 봉이 아직 집계
+        # 전이면, 받아 온 시계열의 마지막 봉이 하루 뒤로 물러난다. 실제로
+        # 2026-09-24 에 이 일이 났다. 09-23 봉($21.27)을 보던 봇이 갑자기
+        # 09-22 봉($23.77)을 최신으로 받아 +9.41% 익절로 착각하고 존재하지 않는
+        # 가격에 매도 주문을 냈다.
+        #
+        # 낡은 봉으로 내린 판단은 전부 틀린다. 값이 비슷하냐가 아니라 시각이
+        # 뒤로 갔느냐만 본다.
+        if self._last_bar_ts is not None and last.ts < self._last_bar_ts:
+            logger.error(
+                "시세가 과거로 후퇴했다: 최신 봉 %s < 직전 판단 봉 %s. 이번 틱을 건너뛴다",
+                last.ts,
+                self._last_bar_ts,
+            )
+            self._notify(
+                f"[{cfg.symbol}] 시세 후퇴 감지 — 판단 보류\n"
+                f"받은 봉 {last.ts:%Y-%m-%d} (${last.close:.2f})\n"
+                f"직전 봉 {self._last_bar_ts:%Y-%m-%d}\n"
+                "제공자가 과거 봉을 최신으로 내려보내고 있다. 데이터가 정상으로 "
+                "돌아올 때까지 주문을 내지 않는다",
+                key=f"stale-{cfg.symbol}-{self._last_bar_ts:%Y%m%d}-{last.ts:%Y%m%d}",
+            )
+            return RunnerResult(
+                decision=Decision(Action.HOLD, rationale="시세 후퇴로 판단 보류"),
+                order=None,
+                order_result=None,
+                position_after=self._store.load_position(cfg.symbol),
+                krw_return=0.0,
+                bar_ts=last.ts,
+            )
+        self._last_bar_ts = last.ts
 
         position = self._store.load_position(cfg.symbol)
         risk = self._store.load_risk(ts.date())

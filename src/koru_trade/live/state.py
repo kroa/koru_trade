@@ -222,6 +222,32 @@ class StateStore:
                 (ts.isoformat(), action, qty, price_usd, fx_rate, krw_return, rationale),
             )
 
+    def last_decision_ts(self) -> dt.datetime | None:
+        """지금까지 판단에 쓴 봉 중 가장 최신 시각.
+
+        재시작해도 "시세가 과거로 후퇴했다" 는 판정을 이어가기 위한 값이다.
+        메모리에만 들고 있으면 프로세스를 올릴 때마다 구멍이 다시 열린다.
+
+        ``MAX(id)`` 가 아니라 ``MAX(ts)`` 다. 제공자가 과거 봉을 최신으로
+        내려보내면 나중에 쓴 행이 더 오래된 ``ts`` 를 갖기 때문이다.
+
+        Note:
+            ``audit`` 테이블에는 종목 컬럼이 없다. 상태 DB 하나에 한 종목을
+            쓰는 전제이며, 여러 종목을 한 DB 에 담게 되면 여기부터 고쳐야 한다.
+
+        Returns:
+            가장 최신 봉 시각. 기록이 없으면 ``None``.
+        """
+        with self._connect() as conn:
+            row = conn.execute("SELECT MAX(ts) FROM audit").fetchone()
+        if row is None or row[0] is None:
+            return None
+        try:
+            return dt.datetime.fromisoformat(str(row[0]))
+        except ValueError:
+            logger.warning("audit 의 ts 를 해석하지 못했다: %r", row[0])
+            return None
+
     def recent_decisions(self, limit: int = 50) -> list[dict[str, Any]]:
         """최근 판단 기록."""
         with self._connect() as conn:
