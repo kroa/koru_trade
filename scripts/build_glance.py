@@ -146,6 +146,9 @@ def build_payload(
     )
 
     return {
+        # 확정 봉 날짜. 화면에는 안 쓰지만 build_public 의 시세 후퇴 차단이
+        # 이 값을 읽는다. 없으면 비교 대상이 "?" 가 되어 검사가 조용히 통과한다.
+        "bar": bars[-1].ts.strftime("%Y-%m-%d"),
         "stamp": stamp.strftime("%Y.%m.%d") + " 판",
         "allowed": bool(signal.allowed),
         "price": round(price, 2),

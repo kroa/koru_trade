@@ -155,6 +155,30 @@ svg{display:block;width:100%;height:auto;max-width:100%}
 }
 .chk.on{background:var(--ink);color:var(--paper)}
 .chk.off{border-color:var(--stop);color:var(--stop);border-width:2px}
+.chklist{
+  list-style:none;margin:0 0 22px;padding:0;
+  display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  background:var(--rule);border:1px solid var(--rule);
+}
+@media (max-width:520px){.chklist{grid-template-columns:1fr}}
+.chklist li{
+  display:flex;align-items:baseline;gap:10px;
+  background:var(--paper);padding:11px 13px;
+  font-size:14px;line-height:1.5;
+}
+.chklist .n{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  color:var(--ink-3);min-width:14px;font-variant-numeric:tabular-nums;
+}
+.chklist .t{flex:1;min-width:0}
+.chklist .s{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.1em;color:var(--ink-3);white-space:nowrap;
+}
+.chklist li.bad{background:var(--paper-2)}
+.chklist li.bad .t{color:var(--stop);font-weight:600}
+.chklist li.bad .s{color:var(--stop)}
+
 .missing{
   border-left:3px solid var(--stop);
   padding:2px 0 2px 16px;margin:0;
@@ -251,6 +275,7 @@ svg{display:block;width:100%;height:auto;max-width:100%}
     <div class="shead"><h2>확인한 것 여덟 가지</h2><span class="tag" id="chkTag">—</span></div>
     <p class="sdesc">칸이 채워지면 통과. 빈 칸이 오늘 막힌 것이다.</p>
     <div class="checks" id="checks"></div>
+    <ol class="chklist" id="chklist"></ol>
     <p class="missing" id="missing">—</p>
   </section>
 
@@ -301,7 +326,7 @@ svg{display:block;width:100%;height:auto;max-width:100%}
 
 </div>
 
-<script id="payload" type="application/json">{"stamp": "2026.09.24 판", "allowed": false, "price": 21.27, "line": 21.29, "gapCents": 2, "gapPct": 0.0856, "series": [{"d": "08/26", "c": 20.49, "l": 19.92}, {"d": "08/27", "c": 21.41, "l": 20.19}, {"d": "08/28", "c": 20.77, "l": 20.29}, {"d": "08/31", "c": 20.96, "l": 20.42}, {"d": "09/01", "c": 19.18, "l": 20.19}, {"d": "09/02", "c": 20.15, "l": 20.18}, {"d": "09/03", "c": 20.69, "l": 20.28}, {"d": "09/04", "c": 23.47, "l": 20.86}, {"d": "09/08", "c": 23.84, "l": 21.4}, {"d": "09/09", "c": 24.2, "l": 21.91}, {"d": "09/10", "c": 21.17, "l": 21.77}, {"d": "09/11", "c": 23.07, "l": 22.01}, {"d": "09/14", "c": 18.57, "l": 21.38}, {"d": "09/15", "c": 18.6, "l": 20.88}, {"d": "09/16", "c": 18.28, "l": 20.41}, {"d": "09/17", "c": 20.41, "l": 20.41}, {"d": "09/18", "c": 20.04, "l": 20.34}, {"d": "09/21", "c": 22.55, "l": 20.74}, {"d": "09/22", "c": 23.77, "l": 21.29}, {"d": "09/23", "c": 21.27, "l": 21.29}], "swingPct": 32.4, "checks": [{"ok": true, "plain": "판단할 기록이 충분한가"}, {"ok": true, "plain": "출렁임이 감당할 수준인가"}, {"ok": false, "plain": "값이 오르는 중인가"}, {"ok": true, "plain": "너무 달아오르지 않았나"}, {"ok": true, "plain": "방향이 있는가"}, {"ok": true, "plain": "장 열릴 때 튀지 않았나"}, {"ok": true, "plain": "사고팔기 쉬운가"}, {"ok": true, "plain": "환율이 발목 잡지 않나"}], "fx": {"now": 1368, "from": "08/26", "to": "09/23", "series": [1383, 1380, 1380, 1367, 1373, 1358, 1355, 1355, 1339, 1339, 1348, 1348, 1346, 1364, 1377, 1380, 1380, 1374, 1350, 1368], "change20": -0.011, "change60": -0.1125, "ago60": 1542, "pctile": 0.137, "corr": -0.21}, "missingWhy": "값이 최근 10일 평균보다 아래라는 뜻이고, 아직 내려가는 중이라는 신호다. 3배짜리는 내려갈 때 세 배로 내려가서, 이럴 때는 사지 않는다.", "nextOpen": "09/24(목) 22:30"}</script>
+<script id="payload" type="application/json">{"bar": "2026-09-23", "stamp": "2026.09.24 판", "allowed": false, "price": 21.27, "line": 21.29, "gapCents": 2, "gapPct": 0.0856, "series": [{"d": "08/26", "c": 20.49, "l": 19.92}, {"d": "08/27", "c": 21.41, "l": 20.19}, {"d": "08/28", "c": 20.77, "l": 20.29}, {"d": "08/31", "c": 20.96, "l": 20.42}, {"d": "09/01", "c": 19.18, "l": 20.19}, {"d": "09/02", "c": 20.15, "l": 20.18}, {"d": "09/03", "c": 20.69, "l": 20.28}, {"d": "09/04", "c": 23.47, "l": 20.86}, {"d": "09/08", "c": 23.84, "l": 21.4}, {"d": "09/09", "c": 24.2, "l": 21.91}, {"d": "09/10", "c": 21.17, "l": 21.77}, {"d": "09/11", "c": 23.07, "l": 22.01}, {"d": "09/14", "c": 18.57, "l": 21.38}, {"d": "09/15", "c": 18.6, "l": 20.88}, {"d": "09/16", "c": 18.28, "l": 20.41}, {"d": "09/17", "c": 20.41, "l": 20.41}, {"d": "09/18", "c": 20.04, "l": 20.34}, {"d": "09/21", "c": 22.55, "l": 20.74}, {"d": "09/22", "c": 23.77, "l": 21.29}, {"d": "09/23", "c": 21.27, "l": 21.29}], "swingPct": 32.4, "checks": [{"ok": true, "plain": "판단할 기록이 충분한가"}, {"ok": true, "plain": "출렁임이 감당할 수준인가"}, {"ok": false, "plain": "값이 오르는 중인가"}, {"ok": true, "plain": "너무 달아오르지 않았나"}, {"ok": true, "plain": "방향이 있는가"}, {"ok": true, "plain": "장 열릴 때 튀지 않았나"}, {"ok": true, "plain": "사고팔기 쉬운가"}, {"ok": true, "plain": "환율이 발목 잡지 않나"}], "fx": {"now": 1367, "from": "08/26", "to": "09/23", "series": [1383, 1380, 1380, 1367, 1373, 1358, 1355, 1355, 1339, 1339, 1348, 1348, 1346, 1364, 1377, 1380, 1380, 1374, 1350, 1367], "change20": -0.012, "change60": -0.1134, "ago60": 1542, "pctile": 0.13, "corr": -0.21}, "missingWhy": "값이 최근 10일 평균보다 아래라는 뜻이고, 아직 내려가는 중이라는 신호다. 3배짜리는 내려갈 때 세 배로 내려가서, 이럴 때는 사지 않는다.", "nextOpen": "09/24(목) 22:30"}</script>
 <script>
 (function(){
   var D = JSON.parse(document.getElementById("payload").textContent);
@@ -492,6 +517,13 @@ svg{display:block;width:100%;height:auto;max-width:100%}
     return '<div class="chk ' + (c.ok ? "on" : "off") + '" title="' + c.plain + '">' +
       (k + 1) + "</div>";
   }).join("");
+  $("chklist").innerHTML = D.checks.map(function(c, k){
+    return '<li class="' + (c.ok ? "" : "bad") + '">' +
+      '<span class="n">' + (k + 1) + '</span>' +
+      '<span class="t">' + c.plain + '</span>' +
+      '<span class="s">' + (c.ok ? "통과" : "막힘") + "</span></li>";
+  }).join("");
+
   var bad = D.checks.filter(function(c){ return !c.ok; });
   $("missing").innerHTML = bad.length
     ? "<b>막힌 것 — " + bad.map(function(c){ return c.plain; }).join(", ") + ".</b> " + D.missingWhy

@@ -88,6 +88,16 @@ def main(argv: list[str] | None = None) -> int:
     argparse.ArgumentParser(description="GitHub Pages 공개 사이트 생성").parse_args(argv)
     DOCS.mkdir(exist_ok=True)
 
+    # 지금 공개돼 있는 페이지가 어느 봉 기준인지 먼저 읽어 둔다.
+    # 시세 제공자가 어제 봉을 최신으로 내려보내는 일이 실제로 있었다
+    # (2026-09-24). 그걸 그대로 발행하면 공개 화면이 하루 뒤로 간다.
+    published = None
+    if (DOCS / "index.html").exists():
+        try:
+            published = stamp(DOCS / "index.html")[0]
+        except Exception:
+            published = None
+
     cards = []
     bar = updated = "?"
     for script, name, title, desc in PAGES:
@@ -145,6 +155,13 @@ def main(argv: list[str] | None = None) -> int:
                 )
     if checked == 0:
         raise SystemExit("자본 필드를 하나도 찾지 못했다. 검사가 망가졌다")
+
+    # 시세 후퇴 차단. 날짜 문자열은 YYYY-MM-DD 라 사전순 비교가 곧 시간순이다.
+    if published and published != "?" and bar != "?" and bar < published:
+        raise SystemExit(
+            f"기준 봉이 뒤로 갔다: 새로 만든 것 {bar} < 이미 공개된 것 {published}. "
+            "시세 제공자가 과거 봉을 최신으로 주고 있다. 발행하지 않는다"
+        )
     print(f"확인: 자본 필드 {checked}개 모두 공개 기준 이하")
     return 0
 
