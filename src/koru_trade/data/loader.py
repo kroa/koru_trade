@@ -108,6 +108,8 @@ def load_bars(
     px = yf.Ticker(symbol).history(period=period, interval=interval, auto_adjust=True)
     if px is None or px.empty:
         raise DataUnavailableError(f"{symbol} 시세를 받을 수 없다(period={period})")
+    if not is_intraday(interval):
+        px = _repair_recent_daily(px, symbol, yf)
 
     fx = yf.Ticker(fx_ticker).history(period=period, interval=interval, auto_adjust=True)
     if fx is None or fx.empty:
@@ -117,6 +119,36 @@ def load_bars(
     if cache_path is not None:
         save_bars_to_csv(bars, cache_path)
     return bars
+
+
+def _repair_recent_daily(px: Any, symbol: str, yf: Any) -> Any:
+    """최근 일봉이 비어 있으면 분봉과 공식 종가로 메운다.
+
+    자세한 이유는 :mod:`koru_trade.data.repair` 에 있다. 여기서는 재료만 받아
+    넘긴다. 재료를 못 받으면 원래 프레임을 그대로 돌려준다 — 그 경우 빈 봉은
+    예전처럼 버려지고 :func:`bars_from_frame` 이 경고한다. 복원 실패가 적재 전체를
+    막으면 안 된다.
+    """
+    from koru_trade.data.repair import incomplete_rows, quote_from_info, repair_recent
+
+    if not incomplete_rows(px):
+        return px
+    try:
+        ticker = yf.Ticker(symbol)
+        intraday = ticker.history(period="5d", interval="5m", auto_adjust=True)
+    except Exception as exc:
+        logger.warning("빈 일봉을 복원하려 분봉을 받다 실패했다(%s)", type(exc).__name__)
+        return px
+    try:
+        quote = quote_from_info(ticker.info)
+    except Exception as exc:
+        # 공식 종가를 못 받아도 분봉 마지막 체결로 대신할 수 있다. 여기서 멈추지 않는다.
+        logger.warning("공식 종가 조회 실패(%s). 분봉 마지막 체결로 대신한다", type(exc).__name__)
+        quote = None
+    fixed, notes = repair_recent(px, intraday, quote)
+    for note in notes:
+        logger.warning(note)
+    return fixed
 
 
 def bars_from_frame(price_frame: Any, fx_series: Any, *, intraday: bool = False) -> tuple[Bar, ...]:
