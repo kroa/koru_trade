@@ -27,7 +27,14 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from _site_common import KST, anonymize, next_open_kst, render, resolve_config  # noqa: E402
+from _site_common import (  # noqa: E402
+    KST,
+    anonymize,
+    next_open_kst,
+    render,
+    resolve_config,
+    threshold_close,
+)
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.config import StrategyConfig  # noqa: E402
@@ -35,7 +42,7 @@ from koru_trade.data import load_bars  # noqa: E402
 from koru_trade.models import Bar  # noqa: E402
 from koru_trade.strategy import evaluate_entry  # noqa: E402
 
-TEMPLATE = ROOT / "build" / "koru_glance.html"
+TEMPLATE = ROOT / "scripts" / "glance_template.html"
 DEFAULT_OUT = ROOT / "build" / "koru_glance_out.html"
 
 CHART_BARS = 20
@@ -174,6 +181,9 @@ def build_payload(
         },
         "missingWhy": _why(blocked[0].name) if blocked else "",
         "nextOpen": next_open_kst(now),
+        # 다음 장 종가가 이 값 이상이어야 그다음 개장에 사도 된다(또는 초록불이
+        # 유지된다). 빠른 평균값과 다를 수 있다 — _site_common.threshold_close 참고.
+        "flipAt": round(threshold_close(bars, cfg), 2),
     }
 
 

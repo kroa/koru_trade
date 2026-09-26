@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.config import StrategyConfig, load_strategy_config  # noqa: E402
 from koru_trade.market_calendar import is_trading_day, next_trading_day  # noqa: E402
 
@@ -126,3 +127,34 @@ def render(payload: dict[str, Any], template: Path, out: Path) -> Path:
         raise SystemExit("발행 파일에서 payload 블록을 찾지 못했다")
     json.loads(match.group(1))
     return out
+
+
+def threshold_close(bars: Any, cfg: StrategyConfig) -> float:
+    """다음 봉이 이 값 이상으로 마감해야 추세 정배열이 성립하는 종가.
+
+    조건이 두 개(종가 > 빠른 평균, 빠른 평균 > 느린 평균)라 빠른 평균값 하나로는
+    답이 안 나온다. 빠른 평균이 느린 평균 아래에 있으면 둘을 뒤집을 만큼 더
+    올라야 한다 — 2026-09-24 밤 빠른 평균은 $21.08 이었지만 실제 필요 종가는
+    $21.39 였다. 한눈에 페이지가 빠른 평균값을 기준가로 적던 시절 이 차이를
+    틀리게 보여줬다. 그래서 두 생성기가 이 함수 하나를 쓴다.
+
+    EMA 는 재귀식이라 닫힌 해를 쓸 수도 있지만 이분법이 더 읽기 쉽고
+    필터 변경에도 견딘다.
+    """
+    closes = [b.close for b in bars]
+    fast = ind.ema(closes, cfg.ema_fast)
+    slow = ind.ema(closes, cfg.ema_slow)
+    if fast is None or slow is None:
+        return 0.0
+    a_f = 2.0 / (cfg.ema_fast + 1)
+    a_s = 2.0 / (cfg.ema_slow + 1)
+    lo, hi = 1.0, 200.0
+    for _ in range(90):
+        mid = (lo + hi) / 2
+        ema_f = mid * a_f + fast * (1 - a_f)
+        ema_s = mid * a_s + slow * (1 - a_s)
+        if mid > ema_f and ema_f > ema_s:
+            hi = mid
+        else:
+            lo = mid
+    return hi

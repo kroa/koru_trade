@@ -27,7 +27,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from _site_common import anonymize, next_open_kst, render, resolve_config  # noqa: E402
+from _site_common import (  # noqa: E402
+    anonymize,
+    next_open_kst,
+    render,
+    resolve_config,
+    threshold_close,
+)
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.backtest import compute_metrics, run_backtest  # noqa: E402
@@ -40,31 +46,6 @@ from koru_trade.strategy import evaluate_entry, plan_entry  # noqa: E402
 
 TEMPLATE = ROOT / "scripts" / "site_template.html"
 DEFAULT_OUT = ROOT / "build" / "koru_signals.html"
-
-
-def threshold_close(bars: tuple[Bar, ...], cfg: StrategyConfig) -> float:
-    """다음 봉이 이 값 이상으로 마감해야 추세 정배열이 성립하는 종가.
-
-    EMA 는 재귀식이라 닫힌 해를 쓸 수도 있지만, 조건이 두 개(종가>EMA10,
-    EMA10>EMA30)라 이분법이 더 읽기 쉽고 필터 변경에도 견딘다.
-    """
-    closes = [b.close for b in bars]
-    fast = ind.ema(closes, cfg.ema_fast)
-    slow = ind.ema(closes, cfg.ema_slow)
-    if fast is None or slow is None:
-        return 0.0
-    a_f = 2.0 / (cfg.ema_fast + 1)
-    a_s = 2.0 / (cfg.ema_slow + 1)
-    lo, hi = 1.0, 200.0
-    for _ in range(90):
-        mid = (lo + hi) / 2
-        ema_f = mid * a_f + fast * (1 - a_f)
-        ema_s = mid * a_s + slow * (1 - a_s)
-        if mid > ema_f and ema_f > ema_s:
-            hi = mid
-        else:
-            lo = mid
-    return hi
 
 
 def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
