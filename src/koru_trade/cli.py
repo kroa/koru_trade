@@ -38,6 +38,9 @@ logger = logging.getLogger("koru_trade")
 
 def main(argv: list[str] | None = None) -> int:
     """진입점. 종료 코드를 반환한다."""
+    from koru_trade.console import use_utf8_console
+
+    use_utf8_console()
     parser = _build_parser()
     args = parser.parse_args(argv)
 

@@ -188,6 +188,9 @@ def build_payload(
 
 
 def main(argv: list[str] | None = None) -> int:
+    from koru_trade.console import use_utf8_console
+
+    use_utf8_console()
     parser = argparse.ArgumentParser(description="KORU 한눈에 페이지 생성")
     parser.add_argument("--config", help="전략 설정 YAML 경로")
     parser.add_argument("--period", default="6mo", help="시세 조회 기간 (기본 6mo)")

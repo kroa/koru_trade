@@ -141,22 +141,6 @@ tr.hit td { background:var(--gain-dim); }
 .btn.ghost { background:transparent; color:var(--ink-2); border:1px solid var(--line); }
 .btn:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
 
-.chips { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0 0; }
-.chip { font-size:12.5px; padding:7px 12px; border-radius:2px; cursor:pointer;
-  background:transparent; color:var(--ink-2); border:1px solid var(--line);
-  transition:all .16s; text-align:left; font-family:var(--f-body); }
-.chip:hover { color:var(--ink-1); border-color:var(--ink-3); }
-.chip:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
-
-#log { display:flex; flex-direction:column; gap:14px; margin-top:20px; }
-.turn { border-left:2px solid var(--line); padding-left:14px; }
-.turn.q { border-left-color:var(--ink-3); }
-.turn.a { border-left-color:var(--gold); }
-.turn .who { font-family:var(--f-mono); font-size:10px; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--ink-3); margin-bottom:5px; }
-.turn .body { font-size:14.5px; white-space:pre-wrap; word-break:break-word; }
-.turn.err .body { color:var(--loss); }
-
 .note { margin-top:22px; padding:15px 18px; border-left:2px solid var(--gold);
   background:var(--gold-dim); border-radius:0 var(--radius) var(--radius) 0;
   font-size:13px; color:var(--ink-2); }
@@ -184,7 +168,7 @@ footer a { color:var(--ink-2); }
     <h1>지금 <em>KORU</em>는<br>어떤 상태인가</h1>
     <p class="lede">
       확정된 마지막 봉 기준의 시장 상태, 진입 조건 판정, 그리고 보유 중이라면
-      어디서 팔고 어디서 잘라야 하는지. 아래에서 직접 물어볼 수도 있다.
+      어디서 팔고 어디서 잘라야 하는지.
     </p>
     <div class="strip" id="strip"></div>
   </header>
@@ -259,35 +243,6 @@ footer a { color:var(--ink-2); }
       <div style="font-size:14px;font-weight:600;margin-bottom:4px">용어</div>
       <p class="note" style="margin:0 0 14px">위 표에 나오는 줄임말이다.</p>
       <div id="glossary"></div>
-    </div>
-  </section>
-
-  <section id="ask">
-    <div class="shead"><span class="snum">04</span><h2>물어보기</h2></div>
-    <p class="sdesc">
-      위 숫자와 이 전략의 규칙을 근거로 답한다. 시세를 새로 조회하거나 주문을 내지는 않는다.
-    </p>
-    <div class="card">
-      <div id="qaOff" hidden>
-        <p style="margin:0;color:var(--ink-2);font-size:14px">
-          이 화면에서는 질문 기능을 쓸 수 없다. claude.ai 에 올린 판에서만 동작하던 기능이다.
-        </p>
-      </div>
-      <div id="qaOn" hidden>
-        <label for="q">질문</label>
-        <textarea id="q" placeholder="예) 지금 사도 되는 자리야? 왜 신호가 안 나?"></textarea>
-        <div style="display:flex;gap:9px;margin-top:12px;align-items:center;flex-wrap:wrap">
-          <button class="btn" id="send" type="button">질문하기</button>
-          <button class="btn ghost" id="stop" type="button" hidden>중지</button>
-          <span class="mono" id="qstate" style="font-size:11.5px;color:var(--ink-3)"></span>
-        </div>
-        <div class="chips" id="chips"></div>
-        <div id="log"></div>
-      </div>
-    </div>
-    <div class="note">
-      <b>답변은 참고용이다.</b> 여기 담긴 숫자는 마지막 확정 봉 기준이고, 장중 가격은 반영되지 않는다.
-      매매 판단과 주문은 사용자가 한다.
     </div>
   </section>
 
@@ -493,174 +448,6 @@ footer a { color:var(--ink-2); }
   });
   $("cur").placeholder = String(D.price);
   load(); renderPos();
-
-  /* ── 03 물어보기 ──────────────────────── */
-  var SUGGEST = [
-    "지금 사도 되는 자리야?",
-    "왜 매수 신호가 안 나?",
-    "얼마까지 오르면 팔기 시작해야 해?",
-    "손절선은 어디고 왜 거기야?",
-    "3배 레버리지가 녹는다는 게 무슨 뜻이야?",
-    "지금 물타기 해도 될까?"
-  ];
-  var history = [];
-  var ctl = null;
-
-  function ctx() {
-    var lines = [
-      "KORU(Direxion Daily MSCI South Korea Bull 3X)의 원화 기준 분할매수·분할익절 전략을 돕는다.",
-      "",
-      "[확정 시장 상태] " + D.bar + " 종가 기준",
-      "종가 $" + D.price + ", 환율 " + D.fx + "원",
-      "EMA10 $" + D.ema10 + " / EMA30 $" + D.ema30 + " (격차 " + pct(D.emaGap, 2) + ")",
-      "ATR14 $" + D.atr + " = 주가의 " + (D.atrPct * 100).toFixed(1) + "%",
-      "RSI " + D.rsi + ", ADX " + D.adx + ", 기초지수 60일 변동성 " +
-        (D.ewyVol * 100).toFixed(2) + "% (" + VOL_SRC + ")",
-      "진입 게이트: " + (D.allowed ? D.checks.length + "개 전부 통과"
-        : "차단 — " + D.blockers.join(", ")),
-      "조건별: " + D.checks.map(function (c) { return c.name + (c.ok ? "(통과)" : "(차단)"); }).join(", "),
-      "막힌 조건 상세: " + (D.checks.filter(function (c) { return !c.ok; })
-        .map(function (c) { return c.name + " — " + c.detail; }).join(" / ") || "없음"),
-      "이 수치는 " + (D.configName || "기본") + " 설정으로 만들었다.",
-      "다음 개장: 한국시간 " + D.nextOpen,
-      "최근 10거래일 종가: " + D.recent.map(function (x) {
-        return x.d + " $" + x.c + "(" + pct(x.r, 1) + ")";
-      }).join(", "),
-      "",
-      "[전략 규칙]",
-      "원화 하드스톱 " + pct(R.hardStop, 0) + ", 최대 보유 " + R.maxHold + "영업일",
-      "손절선 = 1차 진입가 - " + R.stopAtr + "xATR, 최대 " + (R.maxStopPct * 100) + "%로 제한",
-      "익절 계단(원화): " + R.ladder.map(function (t) {
-        return "+" + Math.round(t.k * 100) + "%에 " + Math.round(t.f * 100) + "%";
-      }).join(", "),
-      "분할매수: " + R.scaleIn.map(function (s) {
-        return Math.round(s.w * 100) + "%를 진입가 -" + s.m + "xATR";
-      }).join(", ") + " — 단 그날 양봉이고 종가가 손절선 위일 때만",
-      "설계 자본 " + Math.round(R.capital / 10000) + "만원, 1회 최대 " + Math.round(R.maxPos / 10000) + "만원",
-      "왕복 거래비용 약 " + (C.roundTrip * 100).toFixed(2) + "% (수수료+환전+슬리피지)",
-      "",
-      "[측정된 사실 — 추측이 아니라 이 저장소에서 실측한 값]",
-      "1. 3배 상품은 매일 리밸런싱하므로 -0.5x(L^2-L)x분산 만큼 방향과 무관하게 녹는다.",
-      "   지금 변동성이면 하루 " + (D.decayDaily * 100).toFixed(2) + "%, 20거래일이면 약 " +
-        ((1 - Math.pow(1 + D.decayDaily, 20)) * 100).toFixed(1) + "%.",
-      "   운용보수는 연 1.32%로 감쇠의 100분의 1 수준. '수수료 때문'이라는 설명은 절반만 맞다.",
-      "2. 기초지수가 -10% 빠졌다 정확히 제자리로 와도 3배 상품은 -6.7% 남는다. 왕복할수록 손해다.",
-      "3. 박스권 하단 매수·상단 매도는 세 번 검증해 세 번 기각됐다. 저점 대비 상승률이 높은 구간의",
-      "   기대값이 오히려 가장 좋았다(100%+ 구간 +1.34%, 0~10% 구간 -0.07%). 모멘텀 자산이다.",
-      "4. 급락 다음날 매수는 동전던지기다(-12% 급락 후 1일 보유 n=18, t=0.03). 다만 2~3일 들고 가면",
-      "   중앙값 -8~-10%로 유의하게 나빠진다(t=-2.23). 잡으려면 다음날 팔아야 한다.",
-      "5. 요일 효과는 없다. 주간 저점·고점 요일 편중은 순열검정에서 p=0.72로 무작위와 구분되지 않는다.",
-      "6. 추세 필터(종가>EMA10>EMA30)를 풀면 매매는 33% 늘지만 손익비가 2.21에서 1.80으로 떨어진다.",
-      "",
-      "[답변 규칙]",
-      "- 한국어로, 사용자가 읽는 화면의 숫자와 일치하게 답한다.",
-      "- 방향을 예측하지 않는다. 기저율과 규칙이 말하는 바를 전달하고 판단은 사용자 몫으로 둔다.",
-      "- 근거가 없으면 없다고 말한다. 표본이 작으면 표본 수를 밝힌다.",
-      "- 위 데이터는 확정 봉 기준이며 장중 가격이 아님을 필요할 때 알린다.",
-      "- 길게 쓰지 않는다. 핵심 숫자와 이유를 먼저 쓴다."
-    ];
-    if (POS) {
-      lines.push("", "[사용자 보유]",
-        POS.qty + "주, 평단 $" + POS.avg.toFixed(2) + ", 매수환율 " + Math.round(POS.bfx),
-        "사용자가 보는 현재가 $" + POS.cur.toFixed(2) + " 기준 원화 " + pct(POS.r) + " (" + won(POS.pnl) + ")",
-        "본전 $" + POS.be.toFixed(2) + ", 손절 $" + POS.hs.toFixed(2),
-        "평가액 " + Math.round(POS.val).toLocaleString("ko-KR") + "원 = 설계 자본의 " +
-          (POS.val / R.capital).toFixed(1) + "배",
-        "이 크기의 하루 감쇠 약 " + Math.round(POS.val * Math.abs(D.decayDaily)).toLocaleString("ko-KR") + "원");
-    }
-    return lines.join("\n");
-  }
-
-  function addTurn(kind, who, text) {
-    var d = document.createElement("div");
-    d.className = "turn " + kind;
-    d.innerHTML = '<div class="who"></div><div class="body"></div>';
-    d.querySelector(".who").textContent = who;
-    d.querySelector(".body").textContent = text;
-    $("log").appendChild(d);
-    return d.querySelector(".body");
-  }
-
-  var ERR = {
-    not_granted: "질문 기능이 허용되지 않았다. 페이지를 새로 열고 권한을 허용해 달라.",
-    not_declared: "이 페이지에는 질문 기능이 선언되어 있지 않다.",
-    sampling_disabled: "이 계정에서는 질문 기능이 꺼져 있다.",
-    session_expired: "세션이 만료됐다. 새로고침한 뒤 다시 시도해 달라.",
-    rate_limited: "요청이 너무 잦다. 잠시 뒤에 다시 물어봐 달라.",
-    prompt_too_large: "질문이 너무 길다. 줄여서 다시 보내 달라.",
-    refused: "이 질문에는 답할 수 없다.",
-    empty_completion: "답이 비어서 돌아왔다. 질문을 조금 바꿔 다시 시도해 달라.",
-    capability_disabled: "질문 기능을 쓸 수 없는 상태다.",
-    capability_removed: "질문 기능이 해제됐다. 페이지를 새로고침해 달라.",
-    queue_overflow: "처리 대기가 밀렸다. 잠시 뒤 다시 시도해 달라.",
-    upstream_error: "일시적인 오류가 났다. 다시 시도해 달라."
-  };
-
-  /* 아티팩트 런타임 밖에서 열면(예: build/koru_desk.html 을 그냥 브라우저로 열면)
-     전역 claude 가 없다. 맨몸으로 부르면 ReferenceError 가 이 즉시실행함수를 끊어
-     테마 버튼까지 죽고, qaOn/qaOff 가 둘 다 hidden 으로 남아 빈 카드가 된다. */
-  var sampleReady = (typeof claude !== "undefined" && claude &&
-    typeof claude.use === "function") ? claude.use("sample") : Promise.resolve(null);
-
-  sampleReady.then(function (sample) {
-    if (!sample) { $("qaOff").hidden = false; return; }
-    $("qaOn").hidden = false;
-    $("chips").innerHTML = SUGGEST.map(function (s, i) {
-      return '<button class="chip" type="button" data-i="' + i + '">' + s + "</button>";
-    }).join("");
-    $("chips").addEventListener("click", function (ev) {
-      var b = ev.target.closest ? ev.target.closest(".chip") : null;
-      if (!b) { return; }
-      $("q").value = SUGGEST[+b.getAttribute("data-i")];
-      $("q").focus();
-    });
-
-    function ask() {
-      var text = $("q").value.trim();
-      if (!text) { return; }
-      $("q").value = "";
-      addTurn("q", "질문", text);
-      var out = addTurn("a", "답", "생각하는 중…");
-      $("send").disabled = true;
-      $("stop").hidden = false;
-      $("qstate").textContent = "답하는 중";
-
-      var turns = history.slice(-6).concat([{ role: "user", content: text }]);
-      turns[0] = { role: "user", content: ctx() + "\n\n---\n\n" + turns[0].content };
-      ctl = new AbortController();
-
-      sample(turns, {
-        signal: ctl.signal,
-        modelTier: "default",
-        onText: function (u) { out.textContent = u.text; }
-      }).then(function (res) {
-        out.textContent = res.text + (res.truncated ? "\n\n(길이 제한으로 잘렸다)" : "");
-        history.push({ role: "user", content: text });
-        history.push({ role: "assistant", content: res.text });
-      }).catch(function (e) {
-        var code = (e && e.code) || "upstream_error";
-        if (code === "cancelled") {
-          out.textContent = (e && e.text) ? e.text + "\n\n(중지했다)" : "중지했다.";
-          return;
-        }
-        out.parentElement.className = "turn a err";
-        out.textContent = ERR[code] || ERR.upstream_error;
-        if (code === "not_granted" || code === "sampling_disabled" ||
-            code === "capability_disabled" || code === "capability_removed") {
-          $("qaOn").hidden = true; $("qaOff").hidden = false;
-        }
-      }).then(function () {
-        $("send").disabled = false; $("stop").hidden = true;
-        $("qstate").textContent = ""; ctl = null;
-      });
-    }
-
-    $("send").addEventListener("click", ask);
-    $("stop").addEventListener("click", function () { if (ctl) { ctl.abort(); } });
-    $("q").addEventListener("keydown", function (ev) {
-      if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") { ask(); }
-    });
-  });
 
   /* ── 테마 ─────────────────────────────── */
   var root = document.documentElement;

@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -140,6 +141,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fast", action="store_true", help="타입체크·커버리지 생략")
     parser.add_argument("--fix", action="store_true", help="자동 수정 가능한 것은 고친다")
     args = parser.parse_args(argv)
+
+    # 한국어 Windows 에서 출력이 파이프로 나가면(git 훅, 에디터 터미널) cp949 로 잡혀
+    # 아래의 "—" 한 글자 때문에 UnicodeEncodeError 로 죽고 커밋이 막혔다. 사람이
+    # 환경변수를 설정하게 두지 않는다. 자식 프로세스(ruff/mypy/pytest)도 물려받는다.
+    # koru_trade.console.use_utf8_console 과 같은 일이지만, 이 스크립트는 패키지가
+    # 설치되지 않은 환경에서도 돌아야 하므로 직접 한다.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
 
     if args.gates:
         unknown = set(args.gates) - {g.name for g in GATES}

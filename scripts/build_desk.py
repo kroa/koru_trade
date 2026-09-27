@@ -1,7 +1,8 @@
 """KORU "상황실" 페이지를 만든다.
 
 ``scripts/desk_template.html`` 의 ``__DATA__`` 자리에 지금 시장 상태를 끼워 넣어
-``build/koru_desk.html`` 을 만든다. 같은 경로로 재발행하면 아티팩트 URL 이 유지된다.
+``build/koru_desk.html`` 을 만든다(로컬 확인용). 공개 사이트에 올리는 판은
+``scripts/build_public.py`` 가 ``--public`` 으로 ``docs/desk.html`` 에 만든다.
 
     python scripts/build_desk.py
     python scripts/build_desk.py --config config/frequent.example.yaml --out build/desk.html
@@ -337,6 +338,9 @@ def build_payload(
 
 
 def main(argv: list[str] | None = None) -> int:
+    from koru_trade.console import use_utf8_console
+
+    use_utf8_console()
     parser = argparse.ArgumentParser(description="KORU 상황실 사이트 생성")
     parser.add_argument("--config", help="전략 설정 YAML 경로")
     parser.add_argument("--period", default="3y", help="시세 조회 기간 (기본 3y)")

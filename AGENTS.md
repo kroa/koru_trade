@@ -1,12 +1,24 @@
 # AGENTS.md — KORU 자동매매 저장소 작업 규약
 
 이 문서는 **사람과 AI 코딩 에이전트 모두**를 위한 이 저장소의 작업 계약이다.
-Claude Code, Codex, Cursor, Google Antigravity 등은 작업 시작 시 이 파일을 읽는다
+Google Antigravity, Codex, Cursor 등은 작업 시작 시 이 파일을 읽는다
 (Antigravity 는 저장소 루트의 `AGENTS.md` 를 설정 없이 자동으로 읽는다).
-`CLAUDE.md` 는 이 파일을 가리키는 포인터일 뿐이며, 규약의 원본은 여기다.
+규약의 원본은 이 파일 하나다.
 
 > **처음 이어받는다면 8절(운영), 9절(Windows 환경 함정), 11절(사용자와 일하는 방식)부터 읽어라.**
-> 2026-09-26 에 개발 도구를 Claude Code 에서 Antigravity 로 옮기면서 인수인계용으로 적었다.
+> 2026-09-26 에 개발 도구를 Claude Code 에서 Antigravity 로 옮기면서 인수인계용으로 적었고,
+> 2026-09-27 에 Claude 없이는 동작하지 않는 것(`CLAUDE.md`, `.claude/settings.json`,
+> 상황실의 "물어보기", claude.ai 아티팩트)을 전부 삭제했다.
+
+### 에이전트가 지킬 접근 규칙
+
+예전에는 Claude Code 설정 파일이 도구 차원에서 막았다. 이제는 이 문서가 유일한 근거다.
+
+- **`.env` 를 읽거나 출력하지 마라.** 증권사 앱키·앱시크릿·계좌번호·텔레그램 토큰이 있다.
+  값이 필요한 코드는 `config.load_credentials()` 로만 읽는다.
+- **`state/`, `logs/` 를 통째로 읽지 마라.** 체결 이력과 보유 내역이 있는 개인 금융 정보다.
+  필요하면 `StateStore` 로 필요한 행만 본다.
+- **`git commit --no-verify` 를 쓰지 마라.** (1절 "우회 금지")
 
 ---
 
@@ -37,10 +49,8 @@ USD 가격이 올라도 환율이 빠지면 원화로는 손실일 수 있다.
 | 2 | 로컬 푸시 차단 | `.githooks/pre-push` |
 | 3 | 원격 머지 차단 | `.github/workflows/ci.yml` |
 
-Claude Code 사용자는 `.claude/settings.json` 의 `PostToolUse` 훅이
-파일을 고칠 때마다 빠른 게이트를 자동 실행한다. **다른 도구(Antigravity 등)에는 이 훅이
-없다. `verify.py` 를 직접 돌려라.** Windows 에서는 먼저 UTF-8 환경변수를 설정해야
-커밋 훅이 죽지 않는다(9절).
+에디터가 파일을 고칠 때마다 게이트를 자동으로 돌려 주지는 않는다. **작업을 마치기 전에
+`verify.py` 를 직접 돌려라.** 커밋·푸시 때는 훅이 어차피 전체를 다시 돌린다.
 
 ### 최초 1회 설정
 
@@ -505,12 +515,13 @@ $21.39 였다. 화면에 "기준가" 를 적을 때는 `scripts/_site_common.thr
 **어떤 LLM API 도 부르지 않는다.** 개발 도구를 바꿔도 자동화는 그대로 돈다.
 API 키를 새로 발급받을 필요도 없다.
 
-Claude 에 묶여 있던 것은 두 가지뿐이다.
+Claude 에 묶여 있던 것은 2026-09-27 에 전부 지웠다.
 
-- **claude.ai 에 올린 아티팩트 3개**(한눈에·상황실·신호 원장). Claude Code 의 Artifact
-  도구 없이는 재발행할 수 없다. **공개 사이트(GitHub Pages)가 정본이다.**
-- **상황실의 "물어보기"** (`desk_template.html` 의 `claude.use("sample")`). claude.ai 런타임에서만
-  동작한다. GitHub Pages 에서는 원래부터 꺼져 있고 안내 문구가 뜬다.
+- **claude.ai 아티팩트 3개**(한눈에·상황실·신호 원장) — Claude Code 없이는 재발행할 수 없어
+  삭제했다. 같은 페이지가 **공개 사이트(GitHub Pages)에 있고, 그것이 유일한 정본이다.**
+- **상황실의 "물어보기"** — claude.ai 런타임(`claude.use("sample")`)에서만 동작해 삭제했다.
+- `CLAUDE.md`(이 파일로 가는 포인터), `.claude/settings.json`(Claude Code 훅·권한) — 삭제했다.
+  권한 규칙은 이 문서 머리의 "에이전트가 지킬 접근 규칙" 으로 옮겼다.
 
 나중에 AI 문답을 다시 넣는다면 **API 키를 정적 페이지에 넣지 마라.** GitHub Pages 는
 누구나 소스를 볼 수 있어 키가 그대로 노출된다. 서버 쪽 중계(예: Cloudflare Workers 무료 플랜)를
@@ -585,20 +596,28 @@ Start-Process cmd.exe -ArgumentList '/c','C:\Koru_Trade\scripts\run_watch.bat' -
 (한눈에 템플릿이 실제로 그랬다).
 
 **자동 갱신:** `scripts/update_site.bat` 이 빌드 → 커밋 → 푸시를 한다. 후퇴 차단에 걸리면
-아무것도 발행하지 않고 끝난다. **작업 스케줄러 등록은 아직 안 했다.** 등록 명령은 파일
-머리말에 있다. 시각은 미국장 마감(05:00 KST)이 아니라 **11:40 KST** 를 권한다 — 제공자가
-전날 일봉을 오전 늦게까지 비워 두는 일이 잦다.
+아무것도 발행하지 않고 끝난다. 결과는 `logs/site.log` 에 남는다.
+Windows 작업 스케줄러에 **"KORU site", 매일 11:40 KST** 로 등록되어 있다(2026-09-27).
+시각을 미국장 마감(05:00 KST)이 아니라 11:40 으로 잡은 이유는, 제공자가 전날 일봉을
+오전 늦게까지 비워 두는 일이 잦기 때문이다. 로그온 방식이 `Interactive` 라 **사용자가
+로그인해 있을 때만 돈다.** PC 가 꺼져 있던 날은 건너뛴다. 주말·월요일에는 새 봉이 없어
+날짜 표시만 바뀐 커밋이 생길 수 있다 — 정상이다.
+
+    schtasks /query /tn "KORU site" /v /fo list     # 상태·마지막 실행 결과
+    schtasks /run /tn "KORU site"                   # 지금 한 번 돌리기
 
 ---
 
 ## 9. Windows 개발 환경 함정
 
-- **콘솔 인코딩이 cp949 다.** 한글이나 `—` 를 출력하는 스크립트가 `UnicodeEncodeError` 로 죽는다.
-  git 훅이 돌리는 `verify.py` 도 마찬가지라 **커밋·푸시가 막힌다.** 셸에서 먼저 설정하라.
-
-      set PYTHONIOENCODING=utf-8 & set PYTHONUTF8=1          (cmd)
-      $env:PYTHONIOENCODING="utf-8"; $env:PYTHONUTF8="1"     (PowerShell)
-      export PYTHONIOENCODING=utf-8 PYTHONUTF8=1             (Git Bash)
+- **콘솔 인코딩이 cp949 다 — 지금은 자동으로 처리된다.** 파이썬 출력이 파이프로 나가면
+  (git 훅, 에디터 터미널, 작업 스케줄러) cp949 로 잡혀, `—`·`≥`·`×` 같은 문자 하나에
+  `UnicodeEncodeError` 로 죽는다. git 훅이 돌리는 `verify.py` 가 이 이유로 죽어 커밋이 막혔었다.
+  이제 진입점이 스스로 UTF-8 로 바꾼다: `python -m koru_trade`(`cli.main`), 사이트 생성기 4개는
+  `koru_trade.console.use_utf8_console()` 을 부르고, `scripts/verify.py` 는 같은 일을 직접 한다
+  (패키지 없이도 돌아야 해서). 자식 프로세스(ruff/mypy/pytest)도 환경변수로 물려받는다.
+  **새 진입점(스크립트의 `main`)을 만들면 첫 줄에서 `use_utf8_console()` 을 불러라.**
+  사람이 환경변수를 설정할 필요는 없다.
 
 - **`.bat` 파일은 ASCII 로만 쓴다.** cmd.exe 는 OEM 코드페이지(CP949)로 읽어서 UTF-8 한글 주석을
   명령으로 실행하려 든다.
@@ -619,7 +638,7 @@ Start-Process cmd.exe -ArgumentList '/c','C:\Koru_Trade\scripts\run_watch.bat' -
 | 과제 | 내용 | 영향 |
 |---|---|---|
 | **감시자가 형성 중인 봉으로 판단한다** | 장중에 아직 끝나지 않은 오늘 봉을 "마지막 봉" 으로 넣어 진입 게이트를 돌린다. 백테스트는 확정 종가로 판단하고 다음 봉 시가 지정가로 산다 | 봇이 장중에 먼저 사거나(09-22, 09-25), 확정 종가로는 불합격인 날 산다(09-23 종가 $21.27 < 기준선 $21.29 인데 장중 $21.34 매수). 텔레그램 알림이 검증된 규칙과 어긋난다 |
-| 사이트 자동 갱신 미등록 | `update_site.bat` 을 작업 스케줄러에 올리지 않았다 | 사람이 돌리지 않으면 공개 페이지가 멈춘다 |
+| 사이트 자동 갱신이 로그인에 묶여 있다 | 작업 스케줄러 "KORU site" 는 `Interactive` 로그온이다 | PC 가 꺼져 있거나 로그아웃된 날은 공개 페이지가 갱신되지 않는다 |
 | 3차 분할이 걸리지 않는다 | 5절 "분할매수 3차가 손절선 아래로 갈 수 있다" | 계획의 25% 가 들어가지 않는다. 실질 2분할 |
 | 장 마감 전 청산 미사용 | `close_minutes_before_session_end` 는 분봉에서만 작동한다. 일봉 운용이라 꺼져 있다 | 오버나이트 갭을 피하지 못한다 |
 | `build_desk.py` 경고 | `pct_change()` 의 기본 `fill_method` 폐기 예정 경고 | 동작 영향 없음 |

@@ -85,6 +85,9 @@ def stamp(path: Path) -> tuple[str, str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from koru_trade.console import use_utf8_console
+
+    use_utf8_console()
     argparse.ArgumentParser(description="GitHub Pages 공개 사이트 생성").parse_args(argv)
     DOCS.mkdir(exist_ok=True)
 
