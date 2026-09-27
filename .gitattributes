@@ -1,0 +1,5 @@
+# Windows batch/VBScript files must keep CRLF line endings.
+# cmd.exe misreads LF-only .bat files; update_site.bat hung on 2026-09-27.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.vbs text eol=crlf

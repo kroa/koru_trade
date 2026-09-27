@@ -2,7 +2,9 @@
 REM ============================================================
 REM  KORU public site updater
 REM ============================================================
-REM  NOTE: keep this file ASCII-only.
+REM  NOTE: keep this file ASCII-only with CRLF line endings.
+REM  2026-09-27: a Korean commit message plus LF-only endings
+REM  made cmd.exe hang here before writing a single log line.
 REM  cmd.exe reads .bat in the OEM codepage (CP949 on Korean
 REM  Windows). UTF-8 Korean comments get mangled into garbage
 REM  and cmd tries to execute them as commands.
@@ -19,8 +21,7 @@ REM  So a non-zero exit here is a normal outcome, not a failure
 REM  to retry blindly - the next run picks it up.
 REM
 REM  Register (run as the same user, from an elevated prompt):
-REM    schtasks /create /tn "KORU site" /tr "C:\Koru_Trade\scripts\update_site.bat" ^
-REM             /sc daily /st 11:40 /f
+REM    schtasks /create /tn "KORU site" /tr "C:\Koru_Trade\scripts\update_site.bat" /sc daily /st 11:40 /f
 REM  Remove:
 REM    schtasks /delete /tn "KORU site" /f
 REM ============================================================
@@ -46,7 +47,7 @@ if errorlevel 1 (
 git diff --quiet -- docs
 if errorlevel 1 (
     git add docs
-    git commit -m "chore: 사이트 갱신" >> "%LOG%" 2>&1
+    git commit -m "chore: site update" >> "%LOG%" 2>&1
     git push origin main >> "%LOG%" 2>&1
     if errorlevel 1 (
         echo [%DATE% %TIME%] push failed >> "%LOG%"
