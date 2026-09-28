@@ -15,6 +15,7 @@
   --stop:#C92A16;
   --stop-deep:#A81F0E;
   --go:#1B4B72;
+  --wait:#4E5560;
   --hatch:rgba(23,24,27,.34);
   --field-ink:#F2F0EA;
   --shadow:0 1px 0 rgba(23,24,27,.07);
@@ -31,6 +32,7 @@
     --stop:#E8503A;
     --stop-deep:#C8341F;
     --go:#5EA0CE;
+    --wait:#8C93A0;
     --hatch:rgba(231,229,222,.30);
     --field-ink:#1A0B08;
     --shadow:0 1px 0 rgba(0,0,0,.4);
@@ -47,6 +49,7 @@
   --stop:#E8503A;
   --stop-deep:#C8341F;
   --go:#5EA0CE;
+  --wait:#8C93A0;
   --hatch:rgba(231,229,222,.30);
   --field-ink:#1A0B08;
   --shadow:0 1px 0 rgba(0,0,0,.4);
@@ -86,6 +89,8 @@ body{
   overflow:hidden;
 }
 .verdict[data-state="go"]{background:var(--go)}
+/* 판정이 걸린 장이 이미 열렸거나 끝났다. 판정은 아직 옛 종가 기준이라 색을 뺀다. */
+.verdict[data-state="wait"]{background:var(--wait)}
 .verdict .eyebrow{
   font-family:"IBM Plex Mono",ui-monospace,monospace;
   font-size:11px;letter-spacing:.24em;text-transform:uppercase;
@@ -108,6 +113,14 @@ body{
   opacity:.94;
 }
 .verdict .sub b{font-family:"IBM Plex Mono",monospace;font-weight:600;font-variant-numeric:tabular-nums}
+.verdict .subnote{
+  margin:14px 0 0;
+  font-size:14px;
+  line-height:1.6;
+  max-width:36ch;
+  opacity:.82;
+}
+.verdict .subnote[hidden]{display:none}
 .verdict .grain{
   position:absolute;inset:0;pointer-events:none;
   background:
@@ -239,6 +252,7 @@ svg{display:block;width:100%;height:auto;max-width:100%}
     <div class="eyebrow" id="eyebrow">오늘의 판정</div>
     <h1 id="headline">사지 마라</h1>
     <p class="sub" id="subline">—</p>
+    <p class="subnote" id="subnote" hidden>—</p>
   </div>
 
   <section>
@@ -288,8 +302,13 @@ svg{display:block;width:100%;height:auto;max-width:100%}
       </div>
       <div class="hr"></div>
       <div class="row">
-        <span class="k">다음 개장</span>
+        <span class="k">판정이 걸린 장</span>
         <span class="v" id="flipOpen">—</span>
+      </div>
+      <div class="hr"></div>
+      <div class="row">
+        <span class="k">새 판정</span>
+        <span class="v" id="flipNext">—</span>
       </div>
       <div class="hr"></div>
       <div class="row">
@@ -326,7 +345,7 @@ svg{display:block;width:100%;height:auto;max-width:100%}
 
 </div>
 
-<script id="payload" type="application/json">{"bar": "2026-09-25", "stamp": "2026.09.28 판", "allowed": true, "price": 21.59, "line": 21.17, "gapCents": 0, "gapPct": 0.0, "series": [{"d": "08/28", "c": 20.77, "l": 20.29}, {"d": "08/31", "c": 20.96, "l": 20.42}, {"d": "09/01", "c": 19.18, "l": 20.19}, {"d": "09/02", "c": 20.15, "l": 20.18}, {"d": "09/03", "c": 20.69, "l": 20.28}, {"d": "09/04", "c": 23.47, "l": 20.86}, {"d": "09/08", "c": 23.84, "l": 21.4}, {"d": "09/09", "c": 24.2, "l": 21.91}, {"d": "09/10", "c": 21.17, "l": 21.77}, {"d": "09/11", "c": 23.07, "l": 22.01}, {"d": "09/14", "c": 18.57, "l": 21.38}, {"d": "09/15", "c": 18.6, "l": 20.88}, {"d": "09/16", "c": 18.28, "l": 20.41}, {"d": "09/17", "c": 20.41, "l": 20.41}, {"d": "09/18", "c": 20.04, "l": 20.34}, {"d": "09/21", "c": 22.55, "l": 20.74}, {"d": "09/22", "c": 23.77, "l": 21.29}, {"d": "09/23", "c": 21.27, "l": 21.29}, {"d": "09/24", "c": 20.14, "l": 21.08}, {"d": "09/25", "c": 21.59, "l": 21.17}], "swingPct": 32.4, "checks": [{"ok": true, "plain": "판단할 기록이 충분한가"}, {"ok": true, "plain": "출렁임이 감당할 수준인가"}, {"ok": true, "plain": "값이 오르는 중인가"}, {"ok": true, "plain": "너무 달아오르지 않았나"}, {"ok": true, "plain": "방향이 있는가"}, {"ok": true, "plain": "장 열릴 때 튀지 않았나"}, {"ok": true, "plain": "사고팔기 쉬운가"}, {"ok": true, "plain": "환율이 발목 잡지 않나"}], "fx": {"now": 1367, "from": "08/28", "to": "09/25", "series": [1380, 1367, 1373, 1358, 1355, 1355, 1339, 1339, 1348, 1348, 1346, 1364, 1377, 1380, 1380, 1374, 1350, 1362, 1367, 1367], "change20": -0.0095, "change60": -0.1189, "ago60": 1552, "pctile": 0.133, "corr": -0.19}, "missingWhy": "", "nextOpen": "09/28(월) 22:30", "flipAt": 21.17}</script>
+<script id="payload" type="application/json">{"bar": "2026-09-25", "barDay": "09/25(금)", "stamp": "2026.09.29 판", "allowed": true, "price": 21.59, "line": 21.17, "gapCents": 0, "gapPct": 0.0, "series": [{"d": "08/28", "c": 20.77, "l": 20.29}, {"d": "08/31", "c": 20.96, "l": 20.42}, {"d": "09/01", "c": 19.18, "l": 20.19}, {"d": "09/02", "c": 20.15, "l": 20.18}, {"d": "09/03", "c": 20.69, "l": 20.28}, {"d": "09/04", "c": 23.47, "l": 20.86}, {"d": "09/08", "c": 23.84, "l": 21.4}, {"d": "09/09", "c": 24.2, "l": 21.91}, {"d": "09/10", "c": 21.17, "l": 21.77}, {"d": "09/11", "c": 23.07, "l": 22.01}, {"d": "09/14", "c": 18.57, "l": 21.38}, {"d": "09/15", "c": 18.6, "l": 20.88}, {"d": "09/16", "c": 18.28, "l": 20.41}, {"d": "09/17", "c": 20.41, "l": 20.41}, {"d": "09/18", "c": 20.04, "l": 20.34}, {"d": "09/21", "c": 22.55, "l": 20.74}, {"d": "09/22", "c": 23.77, "l": 21.29}, {"d": "09/23", "c": 21.27, "l": 21.29}, {"d": "09/24", "c": 20.14, "l": 21.08}, {"d": "09/25", "c": 21.59, "l": 21.17}], "swingPct": 32.4, "checks": [{"ok": true, "plain": "판단할 기록이 충분한가"}, {"ok": true, "plain": "출렁임이 감당할 수준인가"}, {"ok": true, "plain": "값이 오르는 중인가"}, {"ok": true, "plain": "너무 달아오르지 않았나"}, {"ok": true, "plain": "방향이 있는가"}, {"ok": true, "plain": "장 열릴 때 튀지 않았나"}, {"ok": true, "plain": "사고팔기 쉬운가"}, {"ok": true, "plain": "환율이 발목 잡지 않나"}], "fx": {"now": 1367, "from": "08/28", "to": "09/25", "series": [1380, 1367, 1373, 1358, 1355, 1355, 1339, 1339, 1348, 1348, 1346, 1364, 1377, 1380, 1380, 1374, 1350, 1362, 1367, 1367], "change20": -0.0095, "change60": -0.1189, "ago60": 1552, "pctile": 0.133, "corr": -0.33}, "missingWhy": "", "trendOk": true, "others": [], "when": {"openAt": "2026-09-28T22:30:00+09:00", "open": "09/28(월) 22:30", "closeAt": "2026-09-29T05:00:00+09:00", "close": "09/29(화) 05:00", "refreshAt": "2026-09-29T11:40:00+09:00", "refresh": "09/29(화) 11:40", "afterOpen": "09/29(화) 22:30"}, "limit": 21.62, "flipAt": 21.17}</script>
 <script>
 (function(){
   var D = JSON.parse(document.getElementById("payload").textContent);
@@ -336,29 +355,155 @@ svg{display:block;width:100%;height:auto;max-width:100%}
   /* ── 판권 ─────────────────────────────── */
   $("stamp").textContent = D.stamp;
 
+  /* ── 판정이 걸린 장이 지났나 ───────────── */
+  /* 판정은 하루에 한 번(확정 종가) 바뀌는데 페이지는 그 사이 내내 열려 있다.
+     2026-09-28 밤, 금요일 종가로 낸 "사도 된다" 가 월요일 장이 한창일 때도 그대로
+     떠 있어서 "지금 더 사라" 로 읽혔다. 그래서 보는 사람의 시계로 단계를 가른다.
+       before 개장 전 · live 장중 · after 장 끝, 갱신 전
+       reload 갱신 시각이 지났는데 이 화면은 그 전에 연 것 → 새로 고침하라(30분 뒤 한 번 스스로)
+       late   갱신 시각 30분 뒤에 열었는데도 옛 판정 → 갱신이 늦어지는 것
+     "late" 를 화면만 보고 판단하면, 폰에 열어 둔 탭은 사이트가 이미 갱신됐는데도
+     "늦어진다" 고 말하게 된다. 그래서 이 화면을 연 시각(loaded)을 같이 본다.
+     주소 끝에 ?now=2026-09-28T23:00:00%2B09:00 을 붙이면 그 시각에 연 것처럼 보여 준다(점검용).
+     viewNow / stageOf / keepFresh 는 세 페이지에 글자까지 같게 들어 있다. 테스트가 대조한다. */
+  function viewNow() {
+    var m = /[?&]now=([^&]+)/.exec(location.search), t = NaN;
+    try { t = m ? Date.parse(decodeURIComponent(m[1])) : NaN; } catch (e) { t = NaN; }
+    return isNaN(t) ? Date.now() : t;
+  }
+  function stageOf(W, t, loaded) {
+    if (t < Date.parse(W.openAt)) { return "before"; }
+    if (t < Date.parse(W.closeAt)) { return "live"; }
+    if (t < Date.parse(W.refreshAt)) { return "after"; }
+    return loaded < Date.parse(W.refreshAt) + 30 * 60 * 1000 ? "reload" : "late";
+  }
+  function keepFresh(W, loaded, render) {
+    function tick() {
+      render();
+      if (/[?&]now=/.test(location.search)) { return; }
+      var due = Date.parse(W.refreshAt) + 30 * 60 * 1000;
+      if (Date.now() < due || loaded >= due) { return; }
+      try {
+        var key = "koru-reload-" + W.refreshAt;
+        if (sessionStorage.getItem(key)) { return; }
+        sessionStorage.setItem(key, "1");
+      } catch (e) { return; }
+      location.reload();
+    }
+    tick();
+    setInterval(tick, 60 * 1000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) { tick(); } });
+    window.addEventListener("pageshow", tick);
+  }
+  var W = D.when, LOADED = viewNow(), CHECKING = /[?&]now=/.test(location.search);
+  var money = function(v){ return "$" + v.toFixed(2); };
+  var OTHERS = D.others.join(", ");
+  var NEED = Math.ceil((D.flipAt - D.price) * 100 - 1e-9);
+
+  /* 막힌 까닭. "넘어야 하는 값" 은 D.line(빠른 평균)이 아니라 D.flipAt(다음 종가가 넘어야
+     하는 값)이다. 빠른 평균이 느린 평균 아래에 있으면 둘을 뒤집을 만큼 더 올라야 해서 값이
+     다르다(09/24: 빠른 평균 $21.08, 필요 종가 $21.39). 가격이 아닌 조건이 막았으면 그걸 말한다. */
+  var stopSub = D.barDay + " 종가 <b>" + money(D.price) + "</b>. " + (D.others.length
+    ? "막힌 것: <b>" + OTHERS + "</b>" +
+      (D.trendOk ? "." : ". 종가도 <b>" + money(D.flipAt) + "</b> 이상이어야 한다.")
+    : "사도 된다로 바뀌려면 종가가 <b>" + money(D.flipAt) + "</b> 이상이어야 한다" +
+      (NEED > 0 ? " — <b>" + NEED + "센트</b> 더." : "."));
+  /* 끝난 장의 종가가 무엇을 뜻하는지. 꼭 필요한 조건만 말한다(충분조건처럼 말하지 않는다). */
+  var closeHint = D.others.length
+    ? "막혀 있던 것(" + OTHERS + ")이 풀리고 그 장 종가가 " + money(D.flipAt) +
+      " 이상이어야 다음 개장(" + W.afterOpen + ")에 사도 된다."
+    : "그 장 종가가 " + money(D.flipAt) + " 아래였다면 다음 개장(" + W.afterOpen +
+      ")에 사지 않는다. 이상이었다면 다른 조건까지 보고 다시 판정한다.";
+
   /* ── 판정 ─────────────────────────────── */
   var V = $("verdict");
-  V.setAttribute("data-state", GO ? "go" : "stop");
-  $("eyebrow").textContent = "확정 종가 기준 판정";
-  $("headline").textContent = GO ? "사도 된다" : "사지 마라";
-  $("subline").innerHTML = GO
-    ? "사는 때는 <b>다음 개장 " + D.nextOpen + "</b>(한국시간)이다. " +
-      "여덟 가지를 모두 통과했다. 마지막 종가 <b>$" + D.price.toFixed(2) + "</b>, 기준선 <b>$" + D.line.toFixed(2) + "</b>."
-    : "기준선까지 <b>" + D.gapCents + "센트</b> 모자란다. 지금 <b>$" + D.price.toFixed(2) +
-      "</b>, 넘어야 하는 값은 <b>$" + D.line.toFixed(2) + "</b>.";
+  function renderVerdict(){
+    var st = stageOf(W, viewNow(), LOADED);
+    var wait = st !== "before" && !(st === "live" && !GO);
+    V.setAttribute("data-state", wait ? "wait" : (GO ? "go" : "stop"));
+
+    var eyebrow = D.barDay + " 종가 기준 판정";
+    var upload = "새 판정은 <b>" + W.refresh + "</b>쯤 사이트에 올라온다.";
+    var head, sub, note = "";
+
+    if (st === "before") {
+      head = GO ? "사도 된다" : "사지 마라";
+      sub = GO
+        ? "사는 때는 <b>다음 개장 " + W.open + "</b>(한국시간), 값은 <b>지정가 " + money(D.limit) +
+          " 이하</b>. 그보다 높게 열려 끝내 안 내려오면 사지 않는다."
+        : stopSub;
+      if (GO) {
+        note = "여덟 가지를 모두 통과했다(" + D.barDay + " 종가 " + money(D.price) + ", 기준선 " +
+          money(D.line) + "). 이미 들고 있다면 더 사라는 뜻이 아니다 — 정해 둔 한도를 넘겨 사지 않는다.";
+      }
+    } else if (st === "live") {
+      if (GO) {
+        eyebrow += " · 매수 시점 지남";
+        head = "매수 시점 지남";
+        sub = "이 판정은 <b>" + W.open + " 개장</b>에 <b>지정가 " + money(D.limit) +
+          " 이하</b>로 사도 된다는 뜻이었고, 그 개장은 지났다. 새 판정은 지금 열린 장이 끝나는 <b>" +
+          W.close + "</b> 종가로 정해지고, 사이트에는 <b>" + W.refresh + "</b>쯤 올라온다.";
+        note = "개장 때 넣은 지정가 주문은 이 장이 끝날 때까지 유효하다. " +
+          "이미 들고 있다면 더 사라는 뜻이 아니다 — 정해 둔 한도를 넘겨 사지 않는다.";
+      } else {
+        head = "사지 마라";
+        sub = stopSub + " 지금 열린 장이 <b>" + W.close + "</b>에 끝나면 그 종가로 다시 판정한다. " + upload;
+      }
+    } else if (st === "after") {
+      eyebrow += " · 새 종가 나옴";
+      head = "새 판정 대기";
+      sub = "<b>" + W.close + "</b>에 장이 끝났다. " + upload + " 그때 이 화면을 새로 고침하라.";
+      note = closeHint;
+    } else if (st === "reload") {
+      eyebrow += " · 새 판정 나왔을 수 있음";
+      head = "새로 고침";
+      sub = "새 판정이 <b>" + W.refresh + "</b>쯤 사이트에 올라왔을 것이다. 이 화면은 그 전에 연 것이라 " +
+        D.barDay + " 종가 기준이다. 새로 고침해서 확인하라.";
+      note = closeHint;
+    } else {
+      eyebrow += " · 갱신 늦어짐";
+      head = "새 판정 대기";
+      sub = "새 판정이 <b>" + W.refresh + "</b>쯤 올라왔어야 하는데 아직이다. 아래 내용은 모두 " +
+        D.barDay + " 종가 기준이라 지금과 다를 수 있다.";
+      note = "갱신이 늦어지는 동안에는 새로 사지 않는다.";
+    }
+    if (CHECKING) { eyebrow += " · 점검용 시각"; }
+
+    $("eyebrow").textContent = eyebrow;
+    $("headline").textContent = head;
+    $("subline").innerHTML = sub;
+    $("subnote").textContent = note;
+    $("subnote").hidden = !note;
+
+    /* 언제 바뀌나 — 날짜를 박아 적는다. "다음 장" 이라고만 쓰면 장이 이미 열린 뒤에는
+       어느 장인지 헷갈린다. "오늘 밤" 은 주말·휴장일에 틀린다. */
+    var span = { before: " · 아직 열리기 전", live: " · 지금 진행 중" }[st] || " · 끝남";
+    $("flipOpen").innerHTML = W.open + " 개장 ~ " + W.close + " 마감" + span +
+      ' <span style="color:var(--ink-3)">(한국시간)</span>';
+    $("flipNext").innerHTML = W.close + " 종가로 정해져 <b>" + W.refresh + "</b>쯤 사이트에 올라온다" +
+      ({ reload: ". 이미 올라왔을 수 있으니 새로 고침하라.", late: ". 예정보다 늦어지고 있다." }[st] || ".");
+  }
+  keepFresh(W, LOADED, renderVerdict);
 
   /* ── 확대 도면: 2센트를 자로 잰다 ─────── */
+  /* 종가가 기준선 위인데도 막힌 날이 있다(빠른 평균이 느린 평균 아래, 또는 다른 조건).
+     그날 "0센트 모자란다" 고 빗금을 그리면 가격이 문제인 것처럼 읽힌다. */
+  var ABOVE = GO || D.gapCents === 0;
   $("gapDesc").textContent = GO
     ? "가격이 기준선을 넘어섰다. 넘어선 만큼을 확대해서 그렸다."
-    : "차이가 " + D.gapPct.toFixed(2) + "%라서 실제 크기로는 선 하나 굵기도 안 된다. 그래서 크게 그렸다.";
+    : ABOVE
+      ? (D.trendOk
+        ? "종가는 기준선 위다. 막힌 건 가격이 아니라 다른 조건이다 — 아래 '막힌 것'을 보라."
+        : "종가는 기준선 위로 올라왔다. 그래도 최근 10일 평균이 30일 평균보다 아직 낮아서 오름세로 치지 않는다.")
+      : "차이가 " + D.gapPct.toFixed(2) + "%라서 실제 크기로는 선 하나 굵기도 안 된다. 그래서 크게 그렸다.";
 
   var gw = 660, gh = 200, gpad = 26;
-  var lineY = 62, barTop = GO ? 40 : 96, base = gh - 34;
+  var lineY = 62, barTop = ABOVE ? 40 : 96, base = gh - 34;
   var barX = gpad + 128, barW = 190;
   var dimX = barX + barW + 46;
 
   $("gapFig").innerHTML =
-    '<svg viewBox="0 0 ' + gw + ' ' + gh + '" role="img" aria-label="오늘 가격이 기준선에 얼마나 못 미쳤는지 확대한 도면">' +
+    '<svg viewBox="0 0 ' + gw + ' ' + gh + '" role="img" aria-label="마지막 종가가 기준선에서 얼마나 떨어져 있는지 확대한 도면">' +
       '<defs><pattern id="hx" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">' +
         '<line x1="0" y1="0" x2="0" y2="7" stroke="var(--hatch)" stroke-width="2.2"/></pattern></defs>' +
 
@@ -369,15 +514,15 @@ svg{display:block;width:100%;height:auto;max-width:100%}
         'font-family="IBM Plex Mono, monospace" font-size="12.5" font-weight="600" ' +
         'letter-spacing=".04em">기준선 $' + D.line.toFixed(2) + '</text>' +
 
-      /* 오늘 기둥 */
+      /* 마지막 종가 기둥. "오늘" 이라고 적으면 장중에 보는 사람이 지금 가격으로 읽는다. */
       '<rect class="bar" x="' + barX + '" y="' + barTop + '" width="' + barW + '" ' +
         'height="' + (base - barTop) + '" fill="' + (GO ? "var(--go)" : "var(--stop)") + '"/>' +
       '<text x="' + (barX + barW / 2) + '" y="' + (base + 20) + '" text-anchor="middle" ' +
-        'fill="var(--ink-2)" font-family="IBM Plex Mono, monospace" font-size="12.5">오늘 $' +
-        D.price.toFixed(2) + '</text>' +
+        'fill="var(--ink-2)" font-family="IBM Plex Mono, monospace" font-size="12.5">' + D.barDay +
+        ' 종가 $' + D.price.toFixed(2) + '</text>' +
 
       /* 치수선 — 양끝 화살표로 틈을 잰다 */
-      (GO ? "" :
+      (ABOVE ? "" :
         '<g class="settle">' +
         '<line x1="' + (barX + barW) + '" y1="' + lineY + '" x2="' + (dimX + 16) + '" y2="' + lineY +
           '" stroke="var(--rule)" stroke-width="1"/>' +
@@ -395,13 +540,13 @@ svg{display:block;width:100%;height:auto;max-width:100%}
         '</g>') +
 
       /* 기둥 윗면의 빗금 = 미달 */
-      (GO ? "" :
+      (ABOVE ? "" :
         '<rect class="settle" x="' + barX + '" y="' + lineY + '" width="' + barW + '" ' +
           'height="' + (barTop - lineY) + '" fill="url(#hx)"/>') +
     '</svg>';
 
-  $("gapCap").textContent = GO
-    ? "기준선을 넘은 상태. 도면은 실제 비율이 아니다."
+  $("gapCap").textContent = ABOVE
+    ? "기준선 위에서 끝났다. 도면은 실제 비율이 아니다."
     : "실제 차이는 " + D.gapPct.toFixed(2) + "%다. 눈에 보이라고 크게 그린 그림이지 비율이 아니다.";
 
   /* ── 20일 차트 ────────────────────────── */
@@ -531,16 +676,19 @@ svg{display:block;width:100%;height:auto;max-width:100%}
     : "여덟 가지를 모두 통과했다.";
 
   /* ── 언제 바뀌나 ──────────────────────── */
-  /* "오늘 밤" 이라고 쓰면 주말·휴장일에 틀린다. 다음 장이 언제든 "다음 장" 이다.
-     기준가는 D.line(빠른 평균)이 아니라 D.flipAt 이다 — 빠른 평균이 느린 평균
-     아래에 있으면 둘을 뒤집을 만큼 더 올라야 해서 값이 다르다. */
+  /* "판정이 걸린 장" 과 "새 판정" 두 줄은 시각에 따라 바뀌어서 renderVerdict 가 쓴다.
+     바뀌는 조건은 꼭 필요한 것만 말한다. 다른 조건이 막고 있으면 그것부터 풀려야 한다. */
   $("flipCond").innerHTML = GO
-    ? '다음 장(' + D.nextOpen + ' 개장)이 <span class="num">$' + D.flipAt.toFixed(2) +
-      '</span> 아래에서 끝나면 그다음 개장부터 <span class="stop-txt">사지 마라</span>로 바뀐다. ' +
-      '이미 다음 개장에 산 것은 무르지 않는다.'
-    : '다음 장(' + D.nextOpen + ' 개장)이 <span class="num">$' + D.flipAt.toFixed(2) +
-      '</span> 이상으로 끝나면 그다음 개장에 <span class="go-txt">사도 된다</span>로 바뀐다.';
-  $("flipOpen").innerHTML = D.nextOpen + ' <span style="color:var(--ink-3)">(한국시간)</span>';
+    ? W.close + ' 마감 종가가 <span class="num">' + money(D.flipAt) +
+      '</span> 아래면 그다음 개장(' + W.afterOpen + ')부터 <span class="stop-txt">사지 마라</span>로 바뀐다. ' +
+      '이미 산 것은 무르지 않는다.'
+    : D.others.length
+      ? '막힌 것(' + OTHERS + ')이 풀리고 ' + W.close + ' 마감 종가가 <span class="num">' +
+        money(D.flipAt) + '</span> 이상이어야 그다음 개장(' + W.afterOpen + ')에 ' +
+        '<span class="go-txt">사도 된다</span>로 바뀐다.'
+      : W.close + ' 마감 종가가 <span class="num">' + money(D.flipAt) +
+        '</span> 이상이면, 다른 조건도 계속 통과할 때 그다음 개장(' + W.afterOpen + ')에 ' +
+        '<span class="go-txt">사도 된다</span>로 바뀐다.';
   $("flipElse").textContent = GO
     ? "이미 들고 있다면 그 뒤로는 사는 규칙이 아니라 파는 규칙(익절·손절·추세 꺾임)을 따른다. 기준선은 매일 조금씩 움직인다."
     : "그 아래로 끝나도 끝이 아니다. 기준선이 날마다 내려오기 때문에 며칠 뒤엔 더 낮은 값으로도 넘을 수 있다.";

@@ -84,6 +84,20 @@ def stamp(path: Path) -> tuple[str, str]:
     return str(d.get("bar") or d.get("generated") or "?"), str(d.get("updated") or "?")
 
 
+def same_bar(bars: dict[str, str]) -> str:
+    """세 페이지의 기준 봉이 같은지 확인하고 그 봉을 돌려준다. 다르면 발행하지 않는다.
+
+    생성기는 각자 시세를 받고, 각자 시계로 형성 중인 봉을 뺀다(``confirmed_bars``).
+    장 마감 직후처럼 경계를 걸쳐 돌리면 한눈에는 어제 봉, 신호 원장은 오늘 봉으로
+    만들어질 수 있다. 그러면 같은 사이트가 같은 순간 서로 다른 판정을 보여 준다.
+    """
+    known = {name: bar for name, bar in bars.items() if bar != "?"}
+    if len(set(known.values())) > 1:
+        detail = ", ".join(f"{name}={bar}" for name, bar in known.items())
+        raise SystemExit(f"세 페이지의 기준 봉이 다르다({detail}). 잠시 뒤 다시 돌려라")
+    return next(iter(known.values()), "?")
+
+
 def main(argv: list[str] | None = None) -> int:
     from koru_trade.console import use_utf8_console
 
@@ -102,15 +116,18 @@ def main(argv: list[str] | None = None) -> int:
             published = None
 
     cards = []
-    bar = updated = "?"
+    updated = "?"
+    seen: dict[str, str] = {}
     for script, name, title, desc in PAGES:
         out = DOCS / name
         print(f"[{name}]")
         run(script, out)
         b, u = stamp(out)
-        if b != "?":
-            bar, updated = b, (u if u != "?" else updated)
+        seen[name] = b
+        if u != "?":
+            updated = u
         cards.append(f'  <a class="card" href="{name}"><h2>{title}</h2><p>{desc}</p></a>')
+    bar = same_bar(seen)
 
     # 표지는 "오늘 사야 하나"(index.html)가 겸한다. 링크만 모아 둔 페이지를 하나
     # 더 두면 "화면이 너무 복잡하다" 는 문제를 한 겹 더 쌓게 된다. 대신 그 페이지

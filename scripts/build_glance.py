@@ -29,18 +29,21 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from _site_common import (  # noqa: E402
     KST,
+    SITE_PERIOD,
+    WEEKDAY_KO,
     anonymize,
-    next_open_kst,
+    confirmed_bars,
     render,
     resolve_config,
     threshold_close,
+    verdict_schedule,
 )
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.config import StrategyConfig  # noqa: E402
 from koru_trade.data import load_bars  # noqa: E402
 from koru_trade.models import Bar  # noqa: E402
-from koru_trade.strategy import evaluate_entry  # noqa: E402
+from koru_trade.strategy import entry_limit_price, evaluate_entry  # noqa: E402
 
 TEMPLATE = ROOT / "scripts" / "glance_template.html"
 DEFAULT_OUT = ROOT / "build" / "koru_glance_out.html"
@@ -63,6 +66,13 @@ PLAIN: dict[str, str] = {
 왼쪽 키는 :func:`~koru_trade.strategy.evaluate_entry` 가 돌려주는 검사 이름과
 정확히 같아야 한다. 이름이 바뀌면 :func:`build_payload` 가 예외로 알려 준다 —
 조용히 영문 지표명이 화면에 나가는 것보다 낫다.
+"""
+
+TREND_CHECK = "추세방향"
+"""가격 문턱(:func:`~_site_common.threshold_close`)으로 풀리는 유일한 검사.
+
+나머지 검사가 막고 있으면 종가가 문턱을 넘어도 "사도 된다" 가 되지 않는다. 페이지가
+그 둘을 구분해서 말해야 해서 이름을 따로 둔다.
 """
 
 WHY: dict[str, str] = {
@@ -94,7 +104,16 @@ def _correlation(a: list[float], b: list[float]) -> float:
         return 0.0
 
 
-def _why(name: str) -> str:
+TREND_ABOVE_LINE = (
+    "값은 최근 10일 평균 위로 올라왔지만, 그 10일 평균이 아직 30일 평균보다 낮다. "
+    "오름세가 확인되기 전이라 사지 않는다."
+)
+"""추세 검사가 막혔는데 종가는 빠른 평균 위인 날. 기본 문구("평균보다 아래")가 틀린다."""
+
+
+def _why(name: str, *, above_line: bool = False) -> str:
+    if above_line and name.startswith(TREND_CHECK):
+        return TREND_ABOVE_LINE
     for key, text in WHY.items():
         if name.startswith(key):
             return text
@@ -138,6 +157,9 @@ def build_payload(
         checks.append({"ok": bool(c.passed), "plain": plain})
 
     blocked = [c for c in signal.checks if not c.passed]
+    trend = next((c for c in signal.checks if c.name == TREND_CHECK), None)
+    if trend is None:
+        raise ValueError(f"{TREND_CHECK!r} 검사가 없다. 페이지가 막힌 까닭을 가를 수 없다")
     highs = [x["c"] for x in window]
 
     # 환율. 원화 수익률에 곱으로 들어가는데 조건표에는 통과/실패 한 칸으로만
@@ -146,16 +168,20 @@ def build_payload(
     fx_win = fx[-CHART_BARS:]
     ago20 = fx[-CHART_BARS] if len(fx) >= CHART_BARS else fx[0]
     ago60 = fx[-61] if len(fx) > 61 else fx[0]
-    lo_fx, hi_fx = min(fx), max(fx)
+    # "1년 범위에서 아래쪽 N%" 라고 적으므로 범위도 1년(250거래일)으로 자른다.
+    fx_year = fx[-250:]
+    lo_fx, hi_fx = min(fx_year), max(fx_year)
     corr = _correlation(
         [closes[i] / closes[i - 1] - 1.0 for i in range(1, len(closes))],
         [fx[i] / fx[i - 1] - 1.0 for i in range(1, len(fx))],
     )
 
+    bar_day = bars[-1].ts.date()
     return {
-        # 확정 봉 날짜. 화면에는 안 쓰지만 build_public 의 시세 후퇴 차단이
-        # 이 값을 읽는다. 없으면 비교 대상이 "?" 가 되어 검사가 조용히 통과한다.
-        "bar": bars[-1].ts.strftime("%Y-%m-%d"),
+        # 확정 봉 날짜. build_public 의 시세 후퇴 차단이 이 값을 읽는다.
+        # 없으면 비교 대상이 "?" 가 되어 검사가 조용히 통과한다.
+        "bar": bar_day.strftime("%Y-%m-%d"),
+        "barDay": f"{bar_day:%m/%d}({WEEKDAY_KO[bar_day.weekday()]})",
         "stamp": stamp.strftime("%Y.%m.%d") + " 판",
         "allowed": bool(signal.allowed),
         "price": round(price, 2),
@@ -179,8 +205,16 @@ def build_payload(
             "pctile": round((fx[-1] - lo_fx) / (hi_fx - lo_fx), 3) if hi_fx > lo_fx else 0.5,
             "corr": round(corr, 2),
         },
-        "missingWhy": _why(blocked[0].name) if blocked else "",
-        "nextOpen": next_open_kst(now),
+        "missingWhy": _why(blocked[0].name, above_line=price > line) if blocked else "",
+        # 막힌 까닭을 가르는 데 쓴다. 추세만 막혔으면 종가 문턱(flipAt)으로 풀리고,
+        # 다른 조건이 막았으면 그것부터 풀려야 한다.
+        "trendOk": bool(trend.passed),
+        "others": [PLAIN[c.name] for c in blocked if c.name != TREND_CHECK],
+        # 이 판정이 걸린 장과 그다음 판정 시각. 페이지가 보는 사람의 시계로
+        # "매수 시점이 지났나" 를 가린다 — _site_common.verdict_schedule 참고.
+        "when": verdict_schedule(bar_day),
+        # 사도 된다일 때 다음 개장에 내는 지정가. 봇이 내는 값과 같은 함수다.
+        "limit": entry_limit_price(price, cfg),
         # 다음 장 종가가 이 값 이상이어야 그다음 개장에 사도 된다(또는 초록불이
         # 유지된다). 빠른 평균값과 다를 수 있다 — _site_common.threshold_close 참고.
         "flipAt": round(threshold_close(bars, cfg), 2),
@@ -193,7 +227,9 @@ def main(argv: list[str] | None = None) -> int:
     use_utf8_console()
     parser = argparse.ArgumentParser(description="KORU 한눈에 페이지 생성")
     parser.add_argument("--config", help="전략 설정 YAML 경로")
-    parser.add_argument("--period", default="6mo", help="시세 조회 기간 (기본 6mo)")
+    parser.add_argument(
+        "--period", default=SITE_PERIOD, help=f"시세 조회 기간 (기본 {SITE_PERIOD}, 세 페이지 공통)"
+    )
     parser.add_argument("--out", default=str(DEFAULT_OUT), help="출력 HTML 경로")
     parser.add_argument("--public", action="store_true", help="공개 배포용")
     args = parser.parse_args(argv)
@@ -205,7 +241,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.public:
         cfg = anonymize(cfg)
 
-    bars = load_bars(cfg.symbol, period=args.period, cache_dir=None)
+    # 장중에 돌리면 형성 중인 오늘 봉이 섞여 온다. 확정 종가만 쓴다.
+    bars = confirmed_bars(load_bars(cfg.symbol, period=args.period, cache_dir=None))
     payload = build_payload(bars, cfg)
     out = render(payload, TEMPLATE, Path(args.out))
 
@@ -219,7 +256,9 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"  차트 {payload['series'][0]['d']}~{payload['series'][-1]['d']} ({len(payload['series'])}봉)"
     )
-    print(f"  다음 개장 {payload['nextOpen']}")
+    when = payload["when"]
+    print(f"  기준 봉 {payload['bar']} · 지정가 ${payload['limit']}")
+    print(f"  판정이 걸린 장 {when['open']} ~ {when['close']} · 새 판정 반영 {when['refresh']}")
     return 0
 
 

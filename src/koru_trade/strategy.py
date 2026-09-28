@@ -817,6 +817,15 @@ def _limit_price(price: float, cfg: StrategyConfig, *, buying: bool) -> float:
     return round(price * (1.0 + adj) if buying else price * (1.0 - adj), 2)
 
 
+def entry_limit_price(close: float, cfg: StrategyConfig) -> float:
+    """확정 종가로 낸 매수 신호가 다음 개장에 내는 지정가.
+
+    사이트가 화면에 적는 값과 봇이 실제로 내는 값이 같아야 해서 따로 공개한다.
+    사이트가 식을 복사해 두면 ``limit_slippage_bps`` 를 바꿀 때 한쪽만 바뀐다.
+    """
+    return _limit_price(close, cfg, buying=True)
+
+
 def _next_tp_threshold(position: Position, cfg: StrategyConfig) -> str:
     """다음 익절 문턱값을 사람이 읽을 문자열로."""
     for i, step in enumerate(cfg.take_profit):

@@ -28,11 +28,14 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from _site_common import (  # noqa: E402
+    SITE_PERIOD,
+    WEEKDAY_KO,
     anonymize,
-    next_open_kst,
+    confirmed_bars,
     render,
     resolve_config,
     threshold_close,
+    verdict_schedule,
 )
 
 from koru_trade import indicators as ind  # noqa: E402
@@ -42,7 +45,7 @@ from koru_trade.config import StrategyConfig  # noqa: E402
 from koru_trade.data import load_bars  # noqa: E402
 from koru_trade.models import Bar  # noqa: E402
 from koru_trade.pnl import required_sell_price_usd  # noqa: E402
-from koru_trade.strategy import evaluate_entry, plan_entry  # noqa: E402
+from koru_trade.strategy import entry_limit_price, evaluate_entry, plan_entry  # noqa: E402
 
 TEMPLATE = ROOT / "scripts" / "site_template.html"
 DEFAULT_OUT = ROOT / "build" / "koru_signals.html"
@@ -63,9 +66,13 @@ def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
     plan = plan_entry(bars, cfg)
     stop_pct = min(max(cfg.stop_atr_multiple * atr / price, cfg.min_stop_pct), cfg.max_stop_pct)
 
+    last = bars[-1].ts
     return {
         "symbol": cfg.symbol,
-        "generated": bars[-1].ts.strftime("%Y-%m-%d"),
+        "generated": last.strftime("%Y-%m-%d"),
+        # 이 판정이 걸린 장과 그다음 판정 시각. 페이지가 보는 사람의 시계로
+        # "매수 시점이 지났나" 를 가린다 — _site_common.verdict_schedule 참고.
+        "when": verdict_schedule(last.date()),
         "summary": {
             "n": metrics.n_trades,
             "wins": sum(1 for t in res.trades if t.is_win),
@@ -92,9 +99,16 @@ def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
             "rsi": round(ind.rsi(closes, 14) or 0.0, 1),
             "allowed": bool(signal.allowed),
             "blockers": [c.name for c in signal.blockers],
+            # 판정 카드는 이 목록을 그대로 그린다. 예전에는 페이지가 "EMA10 > EMA30"
+            # 하나로 판정을 흉내 내고 나머지 7칸을 통과로 박아 두어서, 종가가 빠른
+            # 평균 아래인 날(실제 판정은 차단)에도 "진입 조건 충족" 이라고 적었다.
+            "checks": [{"name": c.name, "ok": bool(c.passed)} for c in signal.checks],
+            "barDay": f"{last:%m/%d}({WEEKDAY_KO[last.weekday()]})",
         },
         "next": {
-            "openKst": next_open_kst(),
+            # 신호가 나면 다음 개장에 내는 지정가. 봇이 내는 값과 같은 함수다.
+            "limit": entry_limit_price(price, cfg),
+            "limitPct": round(cfg.limit_slippage_bps / 100.0, 4),
             "thresholdClose": round(threshold_close(bars, cfg), 2),
             "gapLow": round(price * (1 - cfg.max_gap_pct), 2),
             "gapHigh": round(price * (1 + cfg.max_gap_pct), 2),
@@ -151,7 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     use_utf8_console()
     parser = argparse.ArgumentParser(description="KORU 신호 원장 사이트 생성")
     parser.add_argument("--config", help="전략 설정 YAML 경로")
-    parser.add_argument("--period", default="3y", help="시세 조회 기간 (기본 3y)")
+    parser.add_argument(
+        "--period", default=SITE_PERIOD, help=f"시세 조회 기간 (기본 {SITE_PERIOD}, 세 페이지 공통)"
+    )
     parser.add_argument("--out", default=str(DEFAULT_OUT), help="출력 HTML 경로")
     parser.add_argument(
         "--public",
@@ -165,7 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.public:
         cfg = anonymize(cfg)
         print(f"  공개 모드: 자본을 {cfg.capital_krw:,.0f}원 기준으로 환산했다")
-    bars = load_bars(cfg.symbol, period=args.period, cache_dir=None)
+    # 장중에 돌리면 형성 중인 오늘 봉이 섞여 온다. 확정 종가만 쓴다.
+    bars = confirmed_bars(load_bars(cfg.symbol, period=args.period, cache_dir=None))
     payload = build_payload(bars, cfg)
     out = render(payload, TEMPLATE, Path(args.out))
 
@@ -178,7 +195,8 @@ def main(argv: list[str] | None = None) -> int:
     state = "통과" if cur["allowed"] else "차단: " + ", ".join(cur["blockers"])
     print(f"  진입 게이트 {state}")
     print(
-        f"  다음 개장 {nxt['openKst']} · 종가 임계 ${nxt['thresholdClose']} · "
+        f"  판정이 걸린 장 {payload['when']['open']} · 지정가 ${nxt['limit']} · "
+        f"종가 임계 ${nxt['thresholdClose']} · "
         f"갭 ${nxt['gapLow']}~${nxt['gapHigh']}"
     )
     return 0

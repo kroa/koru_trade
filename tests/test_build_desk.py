@@ -251,29 +251,46 @@ class TestValueTypes:
         assert not isinstance(payload["fx"], bool)
         assert payload["fx"] > 0
 
-    def test_nextOpen_은_공백으로_쪼개지는_한국시간_형식이다(self, payload: dict[str, Any]) -> None:
-        """페이지가 ``split(" ")[0]`` / ``[1]`` 로 날짜와 시각을 나눠 쓴다.
+    def test_when_은_기준_봉_다음_거래일의_장을_가리킨다(self, payload: dict[str, Any]) -> None:
+        """판정은 확정 종가로 내리고 그다음 거래일 개장에 산다.
 
-        기준 시각은 2026-09-19(토) 21:21 KST. 주말이므로 다음 월요일 개장이다.
+        예전에는 ``nextOpen`` 을 **페이지를 만든 시각** 에서 셌다(이 테스트도 그 계약을
+        고정했다). 2026-09-28 밤 장중에 금요일 판정이 월요일 개장을 가리킨 채 "사도 된다" 로
+        남아 헷갈렸고, 계약을 기준 봉에서 세는 것으로 바꿨다. 픽스처 마지막 봉은
+        2026-06-03(수)이므로 다음 장은 06/04(목) 22:30 KST 개장이다. 페이지가 날짜와
+        시각을 ``split(" ")`` 으로 나눠 쓰는 것은 그대로다.
         """
-        value = payload["nextOpen"]
-        assert re.fullmatch(r"\d{2}/\d{2}\([월화수목금]\) \d{2}:\d{2}", value)
-        assert len(value.split(" ")) == 2
-        assert value == "09/21(월) 22:30"
+        when = payload["when"]
+        assert when["open"] == "06/04(목) 22:30"
+        assert when["close"] == "06/05(금) 05:00"
+        for key in ("open", "close", "refresh", "afterOpen"):
+            assert re.fullmatch(r"\d{2}/\d{2}\([월화수목금토일]\) \d{2}:\d{2}", when[key]), key
+            assert len(when[key].split(" ")) == 2
+        for key in ("openAt", "closeAt", "refreshAt"):
+            assert dt.datetime.fromisoformat(when[key]).utcoffset() == dt.timedelta(hours=9)
 
-    def test_개장_전이면_오늘을_개장_후면_다음_거래일을_안내한다(self) -> None:
-        """09:30 ET 를 기준으로 갈린다. 한국시간으로는 같은 날 저녁 전후다."""
-        before = dt.datetime(2026, 9, 21, 21, 0, tzinfo=KST)  # ET 월 08:00, 개장 전
-        after = dt.datetime(2026, 9, 21, 23, 0, tzinfo=KST)  # ET 월 10:00, 장중
-        assert build_desk.next_open_kst(before) == "09/21(월) 22:30"
-        assert build_desk.next_open_kst(after) == "09/22(화) 22:30"
+    def test_만든_시각이_달라도_같은_장을_가리킨다(
+        self, bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        """장중에 다시 만들어도 판정이 다음 날 개장으로 밀리지 않는다."""
+        before = dt.datetime(2026, 6, 4, 21, 0, tzinfo=KST)
+        during = dt.datetime(2026, 6, 4, 23, 0, tzinfo=KST)
+        a = build_desk.build_payload(bars, cfg, EWY_VOL, now=before)
+        b = build_desk.build_payload(bars, cfg, EWY_VOL, now=during)
+        assert a["when"] == b["when"]
 
-    def test_휴장일을_건너뛴다(self) -> None:
-        """2026-09-07 은 노동절이다. 달력 없이 "평일이면 개장" 으로 세다가
-        "월요일이면 판가름난다" 고 잘못 안내한 적이 있다.
+    def test_limit_은_봇의_지정가다(
+        self, payload: dict[str, Any], bars: tuple[Bar, ...], cfg: StrategyConfig
+    ) -> None:
+        """사도 된다일 때 화면에 적는 지정가. 봇이 다음 개장에 내는 값과 같아야 한다.
+
+        반올림 전 종가로 계산한다. 화면의 종가(``price``)는 이미 반올림된 값이라
+        그걸로 다시 계산하면 1센트 어긋날 수 있다.
         """
-        friday = dt.datetime(2026, 9, 4, 23, 0, tzinfo=KST)  # ET 금 10:00, 장중
-        assert build_desk.next_open_kst(friday) == "09/08(화) 22:30"
+        from koru_trade.strategy import entry_limit_price
+
+        assert payload["limit"] == entry_limit_price(bars[-1].close, cfg)
+        assert payload["limit"] >= payload["price"]
 
     def test_blockers_는_문자열_배열이고_allowed_와_어긋나지_않는다(
         self, payload: dict[str, Any]
@@ -399,4 +416,5 @@ def test_두_생성기가_같은_주입_구현을_쓴다() -> None:
     """
     assert build_desk.render is build_site.render
     assert build_desk.resolve_config is build_site.resolve_config
-    assert build_desk.next_open_kst is build_site.next_open_kst
+    assert build_desk.verdict_schedule is build_site.verdict_schedule
+    assert build_desk.confirmed_bars is build_site.confirmed_bars

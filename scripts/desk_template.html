@@ -99,6 +99,10 @@ section { padding-top:52px; }
   border:1px solid currentColor; margin-bottom:16px; }
 .badge.no { background:var(--loss-dim); color:var(--loss); }
 .badge.yes { background:var(--gain-dim); color:var(--gain); }
+/* 판정이 걸린 장이 이미 열렸거나 끝났다. 판정은 아직 옛 종가 기준이다. */
+.badge.wait { background:var(--gold-dim); color:var(--gold); }
+.vwhen { margin:-4px 0 16px; font-size:13.5px; line-height:1.62; color:var(--ink-2); }
+.vwhen b { color:var(--ink-1); font-weight:600; }
 .badge .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
 
 .checks { list-style:none; margin:0; padding:0; }
@@ -179,6 +183,7 @@ footer a { color:var(--ink-2); }
     <div class="grid2">
       <div class="card">
         <div class="badge" id="verdict"><span class="dot"></span><span id="vtxt">—</span></div>
+        <p class="vwhen" id="vwhen">—</p>
         <ul class="checks" id="checks"></ul>
       </div>
       <div class="card">
@@ -198,15 +203,19 @@ footer a { color:var(--ink-2); }
     <div class="card">
       <div class="inrow">
         <div><label for="qty">보유 수량</label>
-          <input type="number" id="qty" min="0" step="1" placeholder="410"></div>
+          <input type="number" id="qty" min="0" step="1" placeholder="100"></div>
         <div><label for="avg">평단 (USD)</label>
-          <input type="number" id="avg" min="0" step="0.01" placeholder="20.32"></div>
+          <input type="number" id="avg" min="0" step="0.01" placeholder="20.00"></div>
       </div>
       <div class="inrow">
         <div><label for="efx">매수 환율</label>
-          <input type="number" id="efx" min="0" step="1" placeholder="1342"></div>
+          <input type="number" id="efx" min="0" step="1" placeholder="1350"></div>
         <div><label for="cur">현재가 (USD)</label>
           <input type="number" id="cur" min="0" step="0.01"></div>
+      </div>
+      <div class="inrow">
+        <div><label for="lim">내 한도 (원) · 한 번에 들고 있을 최대 금액</label>
+          <input type="number" id="lim" min="0" step="10000" placeholder="비워 두면 계산 안 함"></div>
       </div>
       <div id="posout" hidden>
         <div class="strip" id="posstrip" style="margin-top:4px"></div>
@@ -272,7 +281,7 @@ footer a { color:var(--ink-2); }
     { k: "ATR", v: (D.atrPct * 100).toFixed(1) + "%", c: "neu", n: "하루 변동폭 " + usd(D.atr) },
     { k: "EMA 격차", v: pct(D.emaGap, 2), c: cls(D.emaGap), n: "10일 대 30일" },
     { k: "RSI", v: String(D.rsi), c: "neu", n: "ADX " + D.adx },
-    { k: "다음 개장", v: D.nextOpen.split(" ")[1] || "-", c: "neu", n: D.nextOpen.split(" ")[0] }
+    { k: '<span id="whenK">매수 시점</span>', v: '<span id="whenV">-</span>', c: "neu", n: '<span id="whenN">-</span>' }
   ];
   $("strip").innerHTML = STAT.map(function (s) {
     return '<div class="stat"><div class="k">' + s.k + '</div><div class="v ' + s.c + '">' +
@@ -282,12 +291,94 @@ footer a { color:var(--ink-2); }
   var VOL_SRC = { ewy: "EWY 60일 실측", approx: "KORU 변동성/3 근사",
     none: "표본 부족 — 계산 못 함" }[D.ewyVolSource] || "출처 불명";
 
-  /* ── 01 판정 ──────────────────────────── */
-  var vb = $("verdict");
-  vb.className = "badge " + (D.allowed ? "yes" : "no");
-  $("vtxt").textContent = D.allowed
-    ? "진입 조건 " + D.checks.length + "개 전부 통과"
-    : "진입 보류 · " + D.blockers.length + "/" + D.checks.length + "개 미충족";
+  /* ── 01 판정 ──────────────────────────────
+     판정은 하루에 한 번(확정 종가) 바뀌는데 페이지는 그 사이 내내 열려 있다.
+     2026-09-28 밤, 금요일 종가로 낸 "사도 된다" 가 월요일 장이 한창일 때도 그대로
+     떠 있어서 "지금 더 사라" 로 읽혔다. 그래서 보는 사람의 시계로 단계를 가른다.
+       before 개장 전 · live 장중 · after 장 끝, 갱신 전
+       reload 갱신 시각이 지났는데 이 화면은 그 전에 연 것 → 새로 고침하라(30분 뒤 한 번 스스로)
+       late   갱신 시각 30분 뒤에 열었는데도 옛 판정 → 갱신이 늦어지는 것
+     "late" 를 화면만 보고 판단하면, 폰에 열어 둔 탭은 사이트가 이미 갱신됐는데도
+     "늦어진다" 고 말하게 된다. 그래서 이 화면을 연 시각(loaded)을 같이 본다.
+     주소 끝에 ?now=2026-09-28T23:00:00%2B09:00 을 붙이면 그 시각에 연 것처럼 보여 준다(점검용).
+     viewNow / stageOf / keepFresh 는 세 페이지에 글자까지 같게 들어 있다. 테스트가 대조한다. */
+  function viewNow() {
+    var m = /[?&]now=([^&]+)/.exec(location.search), t = NaN;
+    try { t = m ? Date.parse(decodeURIComponent(m[1])) : NaN; } catch (e) { t = NaN; }
+    return isNaN(t) ? Date.now() : t;
+  }
+  function stageOf(W, t, loaded) {
+    if (t < Date.parse(W.openAt)) { return "before"; }
+    if (t < Date.parse(W.closeAt)) { return "live"; }
+    if (t < Date.parse(W.refreshAt)) { return "after"; }
+    return loaded < Date.parse(W.refreshAt) + 30 * 60 * 1000 ? "reload" : "late";
+  }
+  function keepFresh(W, loaded, render) {
+    function tick() {
+      render();
+      if (/[?&]now=/.test(location.search)) { return; }
+      var due = Date.parse(W.refreshAt) + 30 * 60 * 1000;
+      if (Date.now() < due || loaded >= due) { return; }
+      try {
+        var key = "koru-reload-" + W.refreshAt;
+        if (sessionStorage.getItem(key)) { return; }
+        sessionStorage.setItem(key, "1");
+      } catch (e) { return; }
+      location.reload();
+    }
+    tick();
+    setInterval(tick, 60 * 1000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) { tick(); } });
+    window.addEventListener("pageshow", tick);
+  }
+  var W = D.when, LOADED = viewNow(), CHECKING = /[?&]now=/.test(location.search);
+  function renderVerdict() {
+    /* !! 와 String() 을 붙인다. D 의 필드를 변수에 그대로 대입하면 계약 테스트가 하위 블록 별칭으로 읽는다. */
+    var go = !!D.allowed, day = String(D.barDay);
+    var st = stageOf(W, viewNow(), LOADED);
+    var wait = st !== "before" && !(st === "live" && !go);
+    $("verdict").className = "badge " + (wait ? "wait" : (go ? "yes" : "no"));
+    var next = "새 판정은 <b>" + W.close + "</b> 종가로 정해져 <b>" + W.refresh + "</b>쯤 사이트에 올라온다.";
+    var txt, when;
+    if (st === "before" || (st === "live" && !go)) {
+      txt = go
+        ? "진입 조건 " + D.checks.length + "개 전부 통과"
+        : "진입 보류 · " + D.blockers.length + "/" + D.checks.length + "개 미충족";
+      when = go
+        ? "사는 때: <b>다음 개장 " + W.open + "</b>(한국시간), <b>지정가 " + usd(D.limit) +
+          " 이하</b>. 그보다 높게 열려 끝내 안 내려오면 사지 않는다. 처음엔 계획 금액의 " +
+          Math.round(D.rules.scaleIn[0].w * 100) + "%만 산다. 이미 들고 있다면 더 사라는 뜻이 아니다."
+        : (st === "live" ? "지금 열린 장이 끝나면 다시 판정한다. " : "") + next;
+    } else if (st === "live") {
+      txt = "매수 시점 지남 · 다음 판정 대기";
+      when = day + " 종가로 낸 통과 판정은 <b>" + W.open + " 개장</b>(지정가 " + usd(D.limit) +
+        " 이하)에 대한 것이었고, 그 개장은 지났다. " + next;
+    } else if (st === "after") {
+      txt = "새 판정 대기";
+      when = "<b>" + W.close + "</b>에 장이 끝났다. 새 판정은 <b>" + W.refresh +
+        "</b>쯤 사이트에 올라온다. 아래는 " + day + " 종가 기준이다.";
+    } else if (st === "reload") {
+      txt = "새 판정 나왔을 수 있음 · 새로 고침";
+      when = "새 판정이 <b>" + W.refresh + "</b>쯤 사이트에 올라왔을 것이다. 이 화면은 그 전에 연 것이라 " +
+        day + " 종가 기준이다. 새로 고침해서 확인하라.";
+    } else {
+      txt = "새 판정 대기 · 갱신 늦어짐";
+      when = "새 판정이 <b>" + W.refresh + "</b>쯤 올라왔어야 하는데 아직이다. 아래는 " + day +
+        " 종가 기준이라 지금과 다를 수 있다. 그동안은 새로 사지 않는다.";
+    }
+    if (CHECKING) { txt += " · 점검용 시각"; }
+    $("vtxt").textContent = txt;
+    $("vwhen").innerHTML = when;
+    /* 위쪽 칸. 살 시각은 개장 전 통과 판정일 때만 적는다. 그 밖에는 다음 판정이 올라오는 시각. */
+    var buy = st === "before" && go;
+    var at = buy ? W.open : W.refresh;
+    $("whenK").textContent = buy ? "매수 시점" : "다음 판정";
+    $("whenV").textContent = at.split(" ")[1];
+    $("whenN").textContent = at.split(" ")[0] + (buy
+      ? " · 지정가 " + usd(D.limit)
+      : { reload: " · 새로 고침", late: " · 늦어짐" }[st] || " · 사이트 반영");
+  }
+  keepFresh(W, LOADED, renderVerdict);
   $("checks").innerHTML = D.checks.map(function (c) {
     return '<li><span class="chk ' + (c.ok ? "ok" : "no") + '">' + (c.ok ? "✓" : "✕") +
       '</span><span class="nm">' + c.name + '</span><span class="vl">' +
@@ -389,14 +480,15 @@ footer a { color:var(--ink-2); }
   function save() {
     try {
       localStorage.setItem(KEY, JSON.stringify({
-        qty: $("qty").value, avg: $("avg").value, efx: $("efx").value, cur: $("cur").value
+        qty: $("qty").value, avg: $("avg").value, efx: $("efx").value, cur: $("cur").value,
+        lim: $("lim").value
       }));
     } catch (e) { /* 저장소 차단 환경 */ }
   }
   function load() {
     try {
       var s = JSON.parse(localStorage.getItem(KEY) || "{}");
-      ["qty", "avg", "efx", "cur"].forEach(function (k) { if (s[k]) { $(k).value = s[k]; } });
+      ["qty", "avg", "efx", "cur", "lim"].forEach(function (k) { if (s[k]) { $(k).value = s[k]; } });
     } catch (e) { /* 무시 */ }
   }
   var POS = null;
@@ -436,14 +528,21 @@ footer a { color:var(--ink-2); }
     $("ladder").innerHTML =
       "<tr><th>익절 단계</th><th>주가</th><th>현재 대비</th><th>매도</th><th>실현</th></tr>" + rows;
 
+    /* 한도는 사람마다 다르고 공개 페이지에 실을 수 없다(R.capital 은 100만원 기준으로
+       환산된 값이라 실제 보유와 비교하면 엉뚱한 배수가 나온다). 그래서 직접 넣게 하고
+       이 브라우저에만 저장한다. */
     var dayDecay = POS.val * Math.abs(D.decayDaily);
+    var lim = parseFloat($("lim").value);
+    var used = lim > 0 ? POS.val / lim : null;
     $("posnote").innerHTML = "이 크기면 감쇠가 <b>하루 약 " +
       Math.round(dayDecay).toLocaleString("ko-KR") + "원</b>이다. " +
-      "전략 설계 자본은 " + Math.round(R.capital / 10000).toLocaleString("ko-KR") +
-      "만원이고 지금은 그 <b>" + (POS.val / R.capital).toFixed(1) + "배</b>다.";
+      (used === null
+        ? "위에 한도를 넣으면 지금 몇 %를 쓰고 있는지 보여 준다."
+        : "평가액이 내 한도의 <b>" + Math.round(used * 100) + "%</b>다." +
+          (used > 1 ? " <b>한도를 넘었다. 더 사지 않는다.</b>" : ""));
     save();
   }
-  ["qty", "avg", "efx", "cur"].forEach(function (k) {
+  ["qty", "avg", "efx", "cur", "lim"].forEach(function (k) {
     $(k).addEventListener("input", renderPos);
   });
   $("cur").placeholder = String(D.price);

@@ -33,13 +33,22 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from _site_common import KST, anonymize, next_open_kst, render, resolve_config  # noqa: E402
+from _site_common import (  # noqa: E402
+    KST,
+    SITE_PERIOD,
+    WEEKDAY_KO,
+    anonymize,
+    confirmed_bars,
+    render,
+    resolve_config,
+    verdict_schedule,
+)
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.config import StrategyConfig  # noqa: E402
 from koru_trade.data import load_bars  # noqa: E402
 from koru_trade.models import Bar  # noqa: E402
-from koru_trade.strategy import evaluate_entry  # noqa: E402
+from koru_trade.strategy import entry_limit_price, evaluate_entry  # noqa: E402
 
 TEMPLATE = ROOT / "scripts" / "desk_template.html"
 DEFAULT_OUT = ROOT / "build" / "koru_desk.html"
@@ -178,7 +187,12 @@ def build_payload(
         "checks": [
             {"name": c.name, "ok": bool(c.passed), "detail": c.detail} for c in signal.checks
         ],
-        "nextOpen": next_open_kst(now),
+        # 이 판정이 걸린 장과 그다음 판정 시각. 페이지가 보는 사람의 시계로
+        # "매수 시점이 지났나" 를 가린다 — _site_common.verdict_schedule 참고.
+        "when": verdict_schedule(last.ts.date()),
+        "barDay": f"{last.ts:%m/%d}({WEEKDAY_KO[last.ts.weekday()]})",
+        # 사도 된다일 때 다음 개장에 내는 지정가. 봇이 내는 값과 같은 함수다.
+        "limit": entry_limit_price(last.close, cfg),
         # 5자리로 반올림하면 sigma 가 0.0013 아래일 때 -0.0 이 된다(실측).
         # 그러면 페이지가 "하루 -0.00%, 20거래일 0.0%" 라고 쓴다.
         "decayDaily": round(decay_daily(ewy_vol), 6),
@@ -343,7 +357,9 @@ def main(argv: list[str] | None = None) -> int:
     use_utf8_console()
     parser = argparse.ArgumentParser(description="KORU 상황실 사이트 생성")
     parser.add_argument("--config", help="전략 설정 YAML 경로")
-    parser.add_argument("--period", default="3y", help="시세 조회 기간 (기본 3y)")
+    parser.add_argument(
+        "--period", default=SITE_PERIOD, help=f"시세 조회 기간 (기본 {SITE_PERIOD}, 세 페이지 공통)"
+    )
     parser.add_argument("--out", default=str(DEFAULT_OUT), help="출력 HTML 경로")
     parser.add_argument(
         "--public",
@@ -361,7 +377,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.public:
         cfg = anonymize(cfg)
         print(f"  공개 모드: 자본을 {cfg.capital_krw:,.0f}원 기준으로 환산했다")
-    bars = load_bars(cfg.symbol, period=args.period, cache_dir=None)
+    # 장중에 돌리면 형성 중인 오늘 봉이 섞여 온다. 확정 종가만 쓴다.
+    bars = confirmed_bars(load_bars(cfg.symbol, period=args.period, cache_dir=None))
     ewy_vol, vol_source = underlying_daily_vol(bars)
     payload = build_payload(bars, cfg, ewy_vol, vol_source=vol_source, config_name=cfg_path.name)
     out = render(payload, TEMPLATE, Path(args.out))
@@ -376,7 +393,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"생성 완료: {out}  ({out.stat().st_size:,} bytes)")
     print(f"  확정 봉 {payload['bar']} · 종가 ${payload['price']} · 환율 {payload['fx']:,.0f}원")
     print(f"  진입 게이트 {state}")
-    print(f"  다음 개장 {payload['nextOpen']} (한국시간)")
+    when = payload["when"]
+    print(f"  판정이 걸린 장 {when['open']} ~ {when['close']} · 지정가 ${payload['limit']}")
     print(
         f"  하루 감쇠 {payload['decayDaily'] * 100:.3f}% (20거래일 약 {horizon:.1f}%) · "
         f"기초지수 변동성 {payload['ewyVol'] * 100:.2f}% [{source}]"

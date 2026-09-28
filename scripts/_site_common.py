@@ -16,6 +16,7 @@ import datetime as dt
 import json
 import re
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -25,7 +26,9 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from koru_trade import indicators as ind  # noqa: E402
 from koru_trade.config import StrategyConfig, load_strategy_config  # noqa: E402
-from koru_trade.market_calendar import is_trading_day, next_trading_day  # noqa: E402
+from koru_trade.data.repair import session_end  # noqa: E402
+from koru_trade.market_calendar import next_trading_day  # noqa: E402
+from koru_trade.models import Bar  # noqa: E402
 
 ACTIVE_CONFIG = ROOT / "config" / "strategy.yaml"
 FALLBACK_CONFIG = ROOT / "config" / "frequent.example.yaml"
@@ -35,6 +38,29 @@ PLACEHOLDER = "__DATA__"
 KST = ZoneInfo("Asia/Seoul")
 NYT = ZoneInfo("America/New_York")
 US_OPEN_ET = dt.time(9, 30)
+
+SITE_REFRESH_KST = dt.time(11, 40)
+"""공개 사이트가 자동으로 다시 만들어지는 시각(작업 스케줄러 "KORU site").
+
+페이지가 "새 판정은 몇 시쯤 반영된다" 고 안내할 때 쓴다. 등록 시각을 바꾸면
+``scripts/update_site.bat`` 머리의 등록 명령과 AGENTS.md 8절도 같이 바꿔라.
+"""
+
+SITE_PERIOD = "3y"
+"""세 페이지가 받는 시세 기간. 반드시 같아야 한다.
+
+30일 평균은 처음 값을 단순평균으로 심기 때문에 받은 기간이 다르면 값이 조금 다르고,
+다음 종가 문턱(:func:`threshold_close`)은 그 차이를 여러 배로 키운다. 한눈에만 6개월치를
+받던 시절 같은 날 한눈에 $21.53, 신호 원장 $21.57 로 문턱이 갈렸고, 그 사이 종가면
+한 페이지는 "사도 된다", 다른 페이지는 "차단" 이 될 수 있었다.
+"""
+
+CLOSE_SETTLE = dt.timedelta(minutes=20)
+"""장 마감 뒤 이만큼 지나야 그날 일봉을 확정으로 본다.
+
+16:00 종가 단일가 결과가 시세 제공자에 반영되기까지 몇 분 걸린다. 그 사이에 받은
+종가는 마지막 체결가일 수 있다(:mod:`koru_trade.data.repair` 의 실측표 참고).
+"""
 
 PAYLOAD_RE = re.compile(r'<script id="payload" type="application/json">(.*?)</script>', re.S)
 
@@ -85,21 +111,77 @@ def resolve_config(explicit: str | None) -> tuple[StrategyConfig, Path]:
     return load_strategy_config(path), path
 
 
-def next_open_kst(now: dt.datetime | None = None) -> str:
-    """다음 미국 정규장 개장 시각을 한국시간 ``"MM/DD(요일) HH:MM"`` 로.
+def kst_label(moment: dt.datetime) -> str:
+    """tz 있는 시각을 한국시간 ``"MM/DD(요일) HH:MM"`` 으로."""
+    k = moment.astimezone(KST)
+    return f"{k:%m/%d}({WEEKDAY_KO[k.weekday()]}) {k:%H:%M}"
 
-    오늘이 거래일이고 아직 09:30 ET 전이면 오늘을 포함한다. 휴장일 판정은
-    :mod:`koru_trade.market_calendar` 가 한다. 달력 없이 "평일이면 개장" 으로
-    세다가 노동절을 평일로 안내한 적이 있다.
+
+def session_bounds(day: dt.date) -> tuple[dt.datetime, dt.datetime]:
+    """그 거래일 정규장의 개장·마감 시각(tz 있는 ET). 조기 폐장일은 13:00 에 닫힌다."""
+    return (
+        dt.datetime.combine(day, US_OPEN_ET, NYT),
+        dt.datetime.combine(day, session_end(day), NYT),
+    )
+
+
+def verdict_schedule(bar_day: dt.date) -> dict[str, str]:
+    """``bar_day`` 종가로 낸 판정이 걸린 장, 그 장이 끝나는 시각, 새 판정이 반영되는 시각.
+
+    판정은 확정 종가로 내리고 **그다음 거래일 개장**에 지정가로 산다. 그래서 "다음 개장"
+    은 페이지를 만든 시각이 아니라 판정의 기준 봉에서 센다. 만든 시각에서 세던 시절,
+    제공자가 종가를 늦게 채운 날이나 장중에 다시 만든 날에는 지난 판정을 **다음 날
+    개장** 에 붙여 안내할 수 있었다.
+
+    반환값의 ``*At`` 은 한국시간 ISO 문자열이다. 페이지가 보는 사람의 시계와 비교해
+    "이 판정의 매수 시점이 지났나" 를 스스로 가린다. 판정 자체는 하루에 한 번만 바뀌는데
+    페이지는 그 사이 내내 열려 있기 때문이다. 휴장일과 조기 폐장은
+    :mod:`koru_trade.market_calendar` 가 판정한다(노동절을 평일로 안내한 적이 있다).
+
+    Returns:
+        ``openAt``/``open``: 판정이 걸린 장의 개장. ``closeAt``/``close``: 그 장의 마감.
+        ``refreshAt``/``refresh``: 그 마감 뒤 첫 자동 갱신. ``afterOpen``: 그다음 장의 개장.
+    """
+    day = next_trading_day(bar_day)
+    opens, closes = session_bounds(day)
+    closes_kst = closes.astimezone(KST)
+    refresh = dt.datetime.combine(closes_kst.date(), SITE_REFRESH_KST, KST)
+    if refresh < closes_kst:
+        refresh += dt.timedelta(days=1)
+    after_open, _ = session_bounds(next_trading_day(day))
+    return {
+        "openAt": opens.astimezone(KST).isoformat(),
+        "open": kst_label(opens),
+        "closeAt": closes_kst.isoformat(),
+        "close": kst_label(closes),
+        "refreshAt": refresh.isoformat(),
+        "refresh": kst_label(refresh),
+        "afterOpen": kst_label(after_open),
+    }
+
+
+def confirmed_bars(bars: Sequence[Bar], now: dt.datetime | None = None) -> tuple[Bar, ...]:
+    """장이 아직 안 끝난(형성 중인) 마지막 일봉을 뺀다.
+
+    야후 일봉은 장중에도, 심지어 프리장에도 오늘 줄을 실시간 값으로 채워 준다. 그 줄을
+    그대로 쓰면 "확정 종가 기준 판정" 이라고 적어 놓고 장중 가격으로 판정하게 된다 —
+    2026-09-28 밤 장중에 다시 만들면 $20.00 짜리 형성 중인 봉이 판정 기준이 됐을 것이다.
+    예약 갱신(11:40 KST)은 미국장이 닫힌 뒤라 괜찮지만, 손으로 돌리는 빌드는 언제든 돈다.
+
+    그날 마감 시각에 :data:`CLOSE_SETTLE` 를 더한 뒤부터 확정으로 본다.
 
     Args:
+        bars: 시간 오름차순 일봉. 타임스탬프의 날짜가 미국 거래일이다.
         now: 기준 시각(tz 있는 값). None 이면 현재 시각. 테스트가 고정하려고 받는다.
     """
     now_ny = (now or dt.datetime.now(KST)).astimezone(NYT)
-    inclusive = is_trading_day(now_ny.date()) and now_ny.time() < US_OPEN_ET
-    day = next_trading_day(now_ny.date(), inclusive=inclusive)
-    opens = dt.datetime.combine(day, US_OPEN_ET, NYT).astimezone(KST)
-    return f"{opens:%m/%d}({WEEKDAY_KO[opens.weekday()]}) {opens:%H:%M}"
+    kept = list(bars)
+    while kept:
+        _, closes = session_bounds(kept[-1].ts.date())
+        if now_ny >= closes + CLOSE_SETTLE:
+            break
+        kept.pop()
+    return tuple(kept)
 
 
 def render(payload: dict[str, Any], template: Path, out: Path) -> Path:
