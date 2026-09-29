@@ -12,6 +12,13 @@
 
 여기서는 페이지의 자바스크립트 식을 파이썬으로 그대로 옮겨 ``pnl.krw_return`` 과
 맞대어 본다. 한쪽을 고치고 다른 쪽을 안 고치면 이 파일이 깨진다.
+
+2026-09-29 부터 이 계산기는 **실제로 들고 있는 주식** 을 다룬다(``heldReturn``).
+평단은 이미 체결된 값이고 팔 때는 지정가로 판다고 보므로 슬리피지를 붙이지 않는다.
+예전에는 평단에 슬리피지를 한 번 더 붙여(백테스트의 가상 체결가처럼) 본전·익절가를
+0.3%쯤 높게 적었고, 엔진(required_sell_price_usd) 값과 어긋났다. 엔진 쪽 비교 대상도 그래서
+슬리피지 없는 ``krw_return`` 이다 — ``strategy.decide`` 가 익절·손절을 판정할 때 쓰는 식이다.
+같은 함수가 한눈에 페이지에도 들어 있다(tests/test_hold_plan.py 가 둘을 대조한다).
 """
 
 from __future__ import annotations
@@ -38,9 +45,9 @@ import build_desk  # noqa: E402
 EWY_VOL = 0.0391
 """네트워크 없이 고정한 기초지수 변동성. 실제 관측 수준의 값."""
 
-# 페이지의 krwReturn 이 읽는 비용 키. 하나라도 payload 에서 빠지면
+# 페이지의 heldCost/heldProceeds 가 읽는 비용 키. 하나라도 payload 에서 빠지면
 # 자바스크립트에서 undefined 가 되어 NaN 이 전파되고 화면이 조용히 빈다.
-PAGE_COST_KEYS = ("fee", "sellFee", "secFee", "taf", "slip", "fxSpread", "fxSpreadSell")
+PAGE_COST_KEYS = ("fee", "sellFee", "secFee", "taf", "fxSpread", "fxSpreadSell")
 
 
 def _payload(cfg: StrategyConfig, bars: tuple[Bar, ...], **kw: Any) -> dict[str, Any]:
@@ -50,26 +57,24 @@ def _payload(cfg: StrategyConfig, bars: tuple[Bar, ...], **kw: Any) -> dict[str,
 def _page_krw_return(
     cost: dict[str, float], buy: float, bfx: float, sell: float, sfx: float
 ) -> float:
-    """``desk_template.html`` 의 ``krwReturn`` 을 그대로 옮긴 것.
+    """``desk_template.html`` 의 ``heldReturn`` 을 그대로 옮긴 것.
 
     페이지를 고치면 이 함수도 같이 고쳐야 한다. 그래야 두 식이 갈라졌을 때
     이 파일이 깨진다 — 그게 이 테스트의 존재 이유다.
     """
-    in_usd = buy * (1 + cost["slip"])
-    out_usd = sell * (1 - cost["slip"])
-    paid = in_usd * (1 + cost["fee"]) * bfx * (1 + cost["fxSpread"])
-    fees = out_usd * (cost["sellFee"] + cost["secFee"]) + cost["taf"]
-    got = max(0.0, out_usd - fees) * sfx * (1 - cost["fxSpreadSell"])
+    paid = buy * (1 + cost["fee"]) * bfx * (1 + cost["fxSpread"])
+    fees = sell * (cost["sellFee"] + cost["secFee"]) + cost["taf"]
+    got = max(0.0, sell - fees) * sfx * (1 - cost["fxSpreadSell"])
     return got / paid - 1.0
 
 
 def _engine_krw_return(c: CostModel, buy: float, bfx: float, sell: float, sfx: float) -> float:
-    """저장소 엔진의 같은 왕복.
+    """저장소 엔진의 같은 왕복. 실제 체결가(평단)와 지정가 매도가를 그대로 넣는다.
 
-    슬리피지는 ``krw_cost``/``krw_proceeds`` 가 참조하지 않으므로(AGENTS.md 도메인
-    함정) 체결가에 먼저 곱한다. 페이지도 같은 자리에서 곱한다.
+    가상의 진입을 계산할 때는 체결가에 슬리피지를 먼저 곱해야 한다(AGENTS.md 도메인
+    함정). 여기서 다루는 건 이미 체결된 평단이라 곱하지 않는다 — 곱하면 두 번 센다.
     """
-    return krw_return(1, buy * (1 + c.slippage_rate), bfx, sell * (1 - c.slippage_rate), sfx, c)
+    return krw_return(1, buy, bfx, sell, sfx, c)
 
 
 @pytest.fixture

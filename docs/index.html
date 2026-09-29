@@ -220,6 +220,43 @@ svg{display:block;width:100%;height:auto;max-width:100%}
 .go-txt{color:var(--go);font-weight:600}
 .stop-txt{color:var(--stop);font-weight:600}
 
+/* ── 들고 있다면 ─────────────────────────── */
+.hold-in{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.hold-in.three{grid-template-columns:1fr 1fr 1fr}
+@media (max-width:520px){.hold-in.three{grid-template-columns:1fr 1fr}}
+.hold-in label{display:grid;gap:5px}
+.hold-in label span{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.12em;color:var(--ink-3);
+}
+.hold-in input{
+  width:100%;min-width:0;padding:10px 11px;
+  border:1px solid var(--ink);border-radius:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Mono",monospace;font-size:16px;font-variant-numeric:tabular-nums;
+}
+.hold-in input:focus-visible{outline:2px solid var(--go);outline-offset:1px}
+.hold-more{margin:0 0 16px}
+.hold-more summary{cursor:pointer;font-size:14px;color:var(--ink-2);padding:4px 0 10px}
+.hold-empty{color:var(--ink-3);font-size:14px;margin:4px 0 0}
+.hold-now{font-size:15.5px;margin:6px 0 14px}
+.hold-now b,.hold-steps b.num,.hold-ladder td.num{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-variant-numeric:tabular-nums;
+}
+.hold-warn{border-left:3px solid var(--stop);padding:2px 0 2px 14px;margin:0 0 16px;font-size:15px}
+.hold-warn b{color:var(--stop)}
+.hold-ok{color:var(--ink-2);font-size:14px;margin:0 0 16px}
+.hold-steps{list-style:none;margin:0;padding:0;border-top:1px solid var(--ink)}
+.hold-steps > li{padding:14px 0;border-bottom:1px solid var(--rule);font-size:15px;line-height:1.62}
+.hold-steps .k{
+  display:block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.16em;color:var(--ink-3);margin-bottom:4px;
+}
+.hold-ladder{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+.hold-ladder td{padding:6px 0;border-top:1px solid var(--rule)}
+.hold-ladder td.num{text-align:right;padding-left:10px}
+.hold-ladder td.far{color:var(--ink-3)}
+.hold-foot{color:var(--ink-3);font-size:13px;margin:14px 0 0;line-height:1.7}
+
 /* ── 주의 ────────────────────────────────── */
 .note{
   margin-top:46px;padding-top:20px;border-top:1px solid var(--rule);
@@ -318,6 +355,35 @@ svg{display:block;width:100%;height:auto;max-width:100%}
     </div>
   </section>
 
+  <section id="hold">
+    <div class="shead"><h2>들고 있다면</h2><span class="tag">파는 순서</span></div>
+    <p class="sdesc">
+      수량과 평단을 넣으면 언제, 얼마에, 몇 주를 팔지 계산한다. 넣은 값은 이 브라우저에만
+      저장되고 어디에도 보내지 않는다. 상황실 계산기와 같은 값을 쓴다.
+    </p>
+    <div class="hold-in">
+      <label><span>보유 수량</span>
+        <input type="number" id="qty" min="0" step="1" inputmode="numeric" placeholder="100"></label>
+      <label><span>평단 (달러)</span>
+        <input type="number" id="avg" min="0" step="0.01" inputmode="decimal" placeholder="20.00"></label>
+    </div>
+    <details class="hold-more" id="holdMore">
+      <summary>더 정확하게 (넣지 않아도 된다)</summary>
+      <div class="hold-in">
+        <label><span>지금 가격 (달러)</span>
+          <input type="number" id="cur" min="0" step="0.01" inputmode="decimal"></label>
+        <label><span>살 때 환율 (원)</span>
+          <input type="number" id="efx" min="0" step="1" inputmode="numeric" placeholder="1350"></label>
+        <label><span>내 한도 (원)</span>
+          <input type="number" id="lim" min="0" step="10000" inputmode="numeric" placeholder="없으면 비움"></label>
+        <label><span>익절 전 수량 (일부 팔았으면)</span>
+          <input type="number" id="base0" min="0" step="1" inputmode="numeric" placeholder="안 팔았으면 비움"></label>
+      </div>
+    </details>
+    <div id="holdOut" hidden></div>
+    <p class="hold-empty" id="holdEmpty">수량과 평단을 넣으면 여기에 파는 순서가 나온다.</p>
+  </section>
+
   <p class="note">
     <strong>이 종목은 하루에 10% 넘게 움직인다.</strong>
     한국 주식이 1% 오르면 3% 오르고, 1% 내리면 3% 내린다.
@@ -345,7 +411,7 @@ svg{display:block;width:100%;height:auto;max-width:100%}
 
 </div>
 
-<script id="payload" type="application/json">{"bar": "2026-09-28", "barDay": "09/28(월)", "stamp": "2026.09.29 판", "allowed": false, "price": 20.4, "line": 21.03, "gapCents": 64, "gapPct": 3.0973, "series": [{"d": "08/31", "c": 20.96, "l": 20.42}, {"d": "09/01", "c": 19.18, "l": 20.19}, {"d": "09/02", "c": 20.15, "l": 20.18}, {"d": "09/03", "c": 20.69, "l": 20.28}, {"d": "09/04", "c": 23.47, "l": 20.86}, {"d": "09/08", "c": 23.84, "l": 21.4}, {"d": "09/09", "c": 24.2, "l": 21.91}, {"d": "09/10", "c": 21.17, "l": 21.77}, {"d": "09/11", "c": 23.07, "l": 22.01}, {"d": "09/14", "c": 18.57, "l": 21.38}, {"d": "09/15", "c": 18.6, "l": 20.88}, {"d": "09/16", "c": 18.28, "l": 20.41}, {"d": "09/17", "c": 20.41, "l": 20.41}, {"d": "09/18", "c": 20.04, "l": 20.34}, {"d": "09/21", "c": 22.55, "l": 20.74}, {"d": "09/22", "c": 23.77, "l": 21.29}, {"d": "09/23", "c": 21.27, "l": 21.29}, {"d": "09/24", "c": 20.14, "l": 21.08}, {"d": "09/25", "c": 21.59, "l": 21.17}, {"d": "09/28", "c": 20.4, "l": 21.03}], "swingPct": 32.4, "checks": [{"ok": true, "plain": "판단할 기록이 충분한가"}, {"ok": true, "plain": "출렁임이 감당할 수준인가"}, {"ok": false, "plain": "값이 오르는 중인가"}, {"ok": true, "plain": "너무 달아오르지 않았나"}, {"ok": true, "plain": "방향이 있는가"}, {"ok": true, "plain": "장 열릴 때 튀지 않았나"}, {"ok": true, "plain": "사고팔기 쉬운가"}, {"ok": true, "plain": "환율이 발목 잡지 않나"}], "fx": {"now": 1358, "from": "08/31", "to": "09/28", "series": [1367, 1373, 1358, 1355, 1355, 1339, 1339, 1348, 1348, 1346, 1364, 1377, 1380, 1380, 1374, 1350, 1362, 1367, 1367, 1358], "change20": -0.0063, "change60": -0.1194, "ago60": 1542, "pctile": 0.088, "corr": -0.32}, "missingWhy": "값이 최근 10일 평균보다 아래라는 뜻이고, 아직 내려가는 중이라는 신호다. 3배짜리는 내려갈 때 세 배로 내려가서, 이럴 때는 사지 않는다.", "trendOk": false, "others": [], "when": {"openAt": "2026-09-29T22:30:00+09:00", "open": "09/29(화) 22:30", "closeAt": "2026-09-30T05:00:00+09:00", "close": "09/30(수) 05:00", "refreshAt": "2026-09-30T11:40:00+09:00", "refresh": "09/30(수) 11:40", "afterOpen": "09/30(수) 22:30"}, "limit": 20.43, "flipAt": 21.58}</script>
+<script id="payload" type="application/json">{"bar": "2026-09-28", "barDay": "09/28(월)", "stamp": "2026.09.30 판", "allowed": false, "price": 20.4, "line": 21.03, "gapCents": 64, "gapPct": 3.0973, "series": [{"d": "08/31", "c": 20.96, "l": 20.42}, {"d": "09/01", "c": 19.18, "l": 20.19}, {"d": "09/02", "c": 20.15, "l": 20.18}, {"d": "09/03", "c": 20.69, "l": 20.28}, {"d": "09/04", "c": 23.47, "l": 20.86}, {"d": "09/08", "c": 23.84, "l": 21.4}, {"d": "09/09", "c": 24.2, "l": 21.91}, {"d": "09/10", "c": 21.17, "l": 21.77}, {"d": "09/11", "c": 23.07, "l": 22.01}, {"d": "09/14", "c": 18.57, "l": 21.38}, {"d": "09/15", "c": 18.6, "l": 20.88}, {"d": "09/16", "c": 18.28, "l": 20.41}, {"d": "09/17", "c": 20.41, "l": 20.41}, {"d": "09/18", "c": 20.04, "l": 20.34}, {"d": "09/21", "c": 22.55, "l": 20.74}, {"d": "09/22", "c": 23.77, "l": 21.29}, {"d": "09/23", "c": 21.27, "l": 21.29}, {"d": "09/24", "c": 20.14, "l": 21.08}, {"d": "09/25", "c": 21.59, "l": 21.17}, {"d": "09/28", "c": 20.4, "l": 21.03}], "swingPct": 32.4, "checks": [{"ok": true, "plain": "판단할 기록이 충분한가"}, {"ok": true, "plain": "출렁임이 감당할 수준인가"}, {"ok": false, "plain": "값이 오르는 중인가"}, {"ok": true, "plain": "너무 달아오르지 않았나"}, {"ok": true, "plain": "방향이 있는가"}, {"ok": true, "plain": "장 열릴 때 튀지 않았나"}, {"ok": true, "plain": "사고팔기 쉬운가"}, {"ok": true, "plain": "환율이 발목 잡지 않나"}], "fx": {"now": 1356, "rate": 1355.7, "from": "08/31", "to": "09/28", "series": [1367, 1373, 1358, 1355, 1355, 1339, 1339, 1348, 1348, 1346, 1364, 1377, 1380, 1380, 1374, 1350, 1362, 1367, 1367, 1356], "change20": -0.008, "change60": -0.1209, "ago60": 1542, "pctile": 0.078, "corr": -0.32}, "missingWhy": "값이 최근 10일 평균보다 아래라는 뜻이고, 아직 내려가는 중이라는 신호다. 3배짜리는 내려갈 때 세 배로 내려가서, 이럴 때는 사지 않는다.", "trendOk": false, "others": [], "when": {"openAt": "2026-09-29T22:30:00+09:00", "open": "09/29(화) 22:30", "closeAt": "2026-09-30T05:00:00+09:00", "close": "09/30(수) 05:00", "refreshAt": "2026-09-30T11:40:00+09:00", "refresh": "09/30(수) 11:40", "afterOpen": "09/30(수) 22:30"}, "limit": 20.43, "flipAt": 21.58, "cost": {"fee": 0.0007, "sellFee": 0.0007, "secFee": 2.78e-05, "taf": 0.000166, "slip": 0.0015, "fxSpread": 0.0025, "fxSpreadSell": 0.0025, "roundTrip": 0.00941}, "sell": {"ladder": [{"k": 0.05, "f": 0.24}, {"k": 0.07, "f": 0.2}, {"k": 0.1, "f": 0.18}, {"k": 0.13, "f": 0.16}, {"k": 0.16, "f": 0.12}, {"k": 0.2, "f": 0.1}], "hardStop": -0.1, "stopAtr": 2.0, "minStopPct": 0.04, "maxStopPct": 0.12, "trendFloor": 0.0015, "maxHold": 1}, "atr": 2.24, "trendBelow": 21.03}</script>
 <script>
 (function(){
   var D = JSON.parse(document.getElementById("payload").textContent);
@@ -692,5 +758,198 @@ svg{display:block;width:100%;height:auto;max-width:100%}
   $("flipElse").textContent = GO
     ? "이미 들고 있다면 그 뒤로는 사는 규칙이 아니라 파는 규칙(익절·손절·추세 꺾임)을 따른다. 기준선은 매일 조금씩 움직인다."
     : "그 아래로 끝나도 끝이 아니다. 기준선이 날마다 내려오기 때문에 며칠 뒤엔 더 낮은 값으로도 넘을 수 있다.";
+
+  /* ── 들고 있을 때: 원화 손익과 파는 계획 ─────────────
+     pnl.krw_cost / krw_proceeds / required_sell_price_usd 를 1주 기준으로 옮겼다.
+     평단은 이미 체결된 실제 값이고, 팔 때는 지정가로 판다고 본다. 그래서 슬리피지를
+     붙이지 않는다. 슬리피지는 가상의 체결가를 쓰는 백테스트용이라 실제 평단에 붙이면
+     두 번 센다(예전 상황실 계산기가 그래서 익절가를 0.3%쯤 높게 적었다).
+     heldCost ~ sellPlan 은 한눈에·상황실에 글자까지 같게 들어 있다. 테스트가 대조하고
+     node 로 돌려 pnl·strategy 와 같은 값인지 맞대 본다. */
+  function heldCost(C, avg, bfx) {
+    return avg * (1 + C.fee) * bfx * (1 + C.fxSpread);
+  }
+  function heldProceeds(C, price, sfx) {
+    return Math.max(0, price - price * (C.sellFee + C.secFee) - C.taf) * sfx * (1 - C.fxSpreadSell);
+  }
+  function heldReturn(C, avg, bfx, price, sfx) {
+    return heldProceeds(C, price, sfx) / heldCost(C, avg, bfx) - 1;
+  }
+  function heldPriceFor(C, target, avg, bfx, sfx) {
+    var need = (1 + target) * heldCost(C, avg, bfx) / (sfx * (1 - C.fxSpreadSell));
+    return (need + C.taf) / (1 - C.sellFee - C.secFee);
+  }
+  function roundHalfEven(x) {
+    var r = Math.round(x);
+    return Math.abs(x - Math.trunc(x)) === 0.5 && r % 2 !== 0 ? r - 1 : r;
+  }
+  /* pos = { qty 지금 보유, avg 평단, bfx 살 때 환율, lim 내 한도(원, 0 이면 없음),
+             base0 첫 익절 전 수량(0 이면 지금 보유) }
+     mkt = { price 기준 가격, fx 지금 환율, below 추세 꺾임이 걸리는 가장 높은 종가, atr 달러 ATR }
+     - 익절 계단은 decide 처럼 "첫 익절 전 수량" 에 고정한다. 지금 남은 수량으로 다시 짜면
+       판 계단이 또 나타나 +5% 에서 거의 다 팔게 된다. 이미 판 만큼은 앞 계단부터 지운다.
+     - 손절은 원화 하드 스톱과 달러 손절(평단 − stopAtr×ATR, 클램프) 중 높은 쪽이다.
+       엔진은 1차 진입가와 진입 때 ATR 을 쓰므로 이 값은 근사다.
+     - 추세 꺾임은 "원화 수익률 > trendFloor" 이고 "종가 < 빠른 평균" 일 때다. 둘 다 엄격한
+       부등호라 구간 끝을 센트 안쪽으로 잡는다(lo 는 한 센트 위, hi 는 mkt.below). */
+  function sellPlan(C, R, pos, mkt) {
+    var cost = heldCost(C, pos.avg, pos.bfx);
+    var allowed = pos.lim > 0 ? Math.floor(pos.lim / cost) : null;
+    var excess = allowed === null ? 0 : Math.max(0, pos.qty - allowed);
+    var hold = pos.qty - excess;
+    var start = pos.base0 > pos.qty ? pos.base0 : pos.qty;
+    var base = Math.max(hold, allowed === null ? start : Math.min(start, allowed));
+    var sold = base - hold, left = base, seen = 0;
+    var ladder = R.ladder.map(function (t, i) {
+      var q = i === R.ladder.length - 1 ? left
+        : Math.min(left, Math.max(1, roundHalfEven(base * t.f)));
+      left -= q;
+      var gone = Math.min(q, Math.max(0, sold - seen));
+      seen += q;
+      return { k: t.k, price: heldPriceFor(C, t.k, pos.avg, pos.bfx, mkt.fx), qty: q, rest: q - gone };
+    });
+    var krwStop = heldPriceFor(C, R.hardStop, pos.avg, pos.bfx, mkt.fx);
+    var raw = mkt.atr > 0 ? R.stopAtr * mkt.atr / pos.avg : R.maxStopPct;
+    var usdPct = Math.min(Math.max(raw, R.minStopPct), R.maxStopPct);
+    var usdStop = pos.avg * (1 - usdPct);
+    var lo = R.trendFloor === null || R.trendFloor === undefined ? null
+      : (Math.floor(heldPriceFor(C, R.trendFloor, pos.avg, pos.bfx, mkt.fx) * 100) + 1) / 100;
+    var ret = heldReturn(C, pos.avg, pos.bfx, mkt.price, mkt.fx);
+    return {
+      ret: ret,
+      pnl: pos.qty * cost * ret,
+      breakeven: heldPriceFor(C, 0, pos.avg, pos.bfx, mkt.fx),
+      stop: Math.max(krwStop, usdStop),
+      stopBy: usdStop > krwStop ? "usd" : "krw",
+      usdPct: usdPct,
+      used: pos.lim > 0 ? pos.qty * cost / pos.lim : null,
+      excess: excess,
+      hold: hold,
+      base: base,
+      sold: sold,
+      ladder: ladder,
+      band: lo !== null && lo <= mkt.below ? { lo: lo, hi: mkt.below } : null
+    };
+  }
+
+  /* ── 들고 있다면 ─────────────────────────
+     들고 있을 때 얼마나, 어떻게 파는지 보여 준다. 사람이 실제로 하는 순서대로 적는다 —
+     미리 걸어 둘 것(익절), 마감 직전에 볼 것(추세 꺾임·시간), 닿으면 바로(손절).
+     이미 전량 팔 때(손절선 아래, 지난 종가가 추세 꺾임 구간)는 그것 하나만 말한다. */
+  var HC = D.cost, HR = D.sell, HKEY = "koru-desk-pos", HOLD = ["qty", "avg", "cur", "efx", "lim", "base0"];
+  function holdSave(){
+    try {
+      var s = {};
+      HOLD.forEach(function(k){ s[k] = $(k).value; });
+      localStorage.setItem(HKEY, JSON.stringify(s));
+    } catch (e) { /* 저장소가 막힌 브라우저 */ }
+  }
+  function holdLoad(){
+    try {
+      var s = JSON.parse(localStorage.getItem(HKEY) || "{}");
+      HOLD.forEach(function(k){ if (s[k]) { $(k).value = s[k]; } });
+    } catch (e) { /* 무시 */ }
+  }
+  function won(v){
+    var a = Math.abs(v), sign = v < 0 ? "−" : "+";
+    return a >= 10000 ? sign + (a / 10000).toFixed(1) + "만원" : sign + Math.round(a).toLocaleString("ko-KR") + "원";
+  }
+  function pctTxt(v, d){ return (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(d === undefined ? 1 : d) + "%"; }
+  function absPct(v){ return Math.abs(v * 100).toFixed(1) + "%"; }
+  function renderHold(){
+    var qty = Math.floor(parseFloat($("qty").value)), avg = parseFloat($("avg").value);
+    holdSave();
+    if (!(qty > 0) || !(avg > 0)) { $("holdOut").hidden = true; $("holdEmpty").hidden = false; return; }
+    var cur = parseFloat($("cur").value), bfx = parseFloat($("efx").value), lim = parseFloat($("lim").value);
+    var base0 = Math.floor(parseFloat($("base0").value));
+    var price = cur > 0 ? cur : D.price;
+    var P = sellPlan(HC, HR,
+      { qty: qty, avg: avg, bfx: bfx > 0 ? bfx : F.rate, lim: lim > 0 ? lim : 0, base0: base0 > 0 ? base0 : 0 },
+      { price: price, fx: F.rate, below: D.trendBelow, atr: D.atr });
+    var st = stageOf(W, viewNow(), LOADED);
+    var later = st === "after" || st === "reload" || st === "late";
+    var ref = cur > 0 ? "넣은 지금 가격" : D.barDay + " 종가";
+    var closeAt = W.close.split(" ")[1];
+    var stopWhy = P.stopBy === "usd"
+      ? "달러 −" + absPct(P.usdPct) + ": 요즘 하루 변동폭의 " + HR.stopAtr + "배로 잡은 손절선, 평단 기준 근사"
+      : "원화 " + pctTxt(HR.hardStop, 0);
+    var h = "";
+
+    h += '<p class="hold-now">' + ref + " <b>" + money(price) +
+      "</b>에 다 팔면 비용을 빼고 원화 <b>" + pctTxt(P.ret) + "</b>(<b>" + won(P.pnl) + "</b>). 본전은 <b>" +
+      money(P.breakeven) + "</b>.</p>";
+
+    /* 이미 전량 팔 때. 손절선 아래이거나, 지난 종가가 추세 꺾임 구간이었다(decide 는 그 종가에
+       전량 판다). 그때 "도달 — 지금 24주" 같은 부분 매도를 보여 주면 규칙과 어긋난다. */
+    var breached = price <= P.stop;
+    var fired = !!P.band && D.price >= P.band.lo && D.price <= P.band.hi;
+    if (breached || fired) {
+      h += '<p class="hold-warn"><b>지금 전량 판다.</b> ' + (breached
+        ? ref + " " + money(price) + "가 손절선 <b>" + money(P.stop) + "</b>(" + stopWhy + ")에 닿았다."
+        : D.barDay + " 종가 " + money(D.price) + "가 추세 꺾임 구간(" + money(P.band.lo) + " ~ " +
+          money(P.band.hi) + ")이었다. " + D.barDay + " 장이나 그 전에 샀다면, 이익은 났지만 10일 평균 " +
+          "아래로 끝나 규칙대로면 그 종가에 전량 파는 날이었다.") + "</p>";
+    } else {
+      if (P.excess > 0) {
+        h += '<p class="hold-warn">한도를 <b>' + P.excess + "주</b> 넘었다(한도의 " + Math.round(P.used * 100) +
+          "%). 넘친 " + P.excess + "주는 본전 " + money(P.breakeven) + " 위에서 <b>먼저</b> 판다. " +
+          "①의 익절 수량만 남는 " + P.hold + "주 기준이고, ②(마감 전 정리)와 ③(손절)은 넘친 것까지 전부에 " +
+          "적용된다 — 본전 위로 못 올라와도 그때 같이 판다.</p>";
+      } else if (P.used !== null) {
+        h += '<p class="hold-ok">한도의 ' + Math.round(P.used * 100) + "%를 쓰고 있다.</p>";
+      }
+
+      h += '<ol class="hold-steps">';
+      h += '<li><span class="k">① 미리 걸어 둘 것 — 익절</span>' +
+        "값이 오르면 이 가격에 이만큼 판다. 증권사 앱에 <b>지정가 매도</b>로 미리 걸어 둔다." +
+        (P.sold > 0 ? " 이미 판 " + P.sold + "주는 앞 계단부터 지웠다." : "") +
+        '<table class="hold-ladder">' + P.ladder.map(function(t){
+          var row = "<tr><td>원화 +" + Math.round(t.k * 100) + '%</td><td class="num">' + money(t.price) + "</td>";
+          if (t.rest === 0) { return row + '<td class="num far">팔았음</td><td class="num far">—</td></tr>'; }
+          /* 이미 넘은 계단은 "−1.1%" 가 아니라 지금 팔 것이라고 적는다. */
+          var gap = price >= t.price ? '<td class="num"><b>도달 — 지금</b></td>'
+            : '<td class="num far">' + pctTxt(t.price / price - 1) + "</td>";
+          return row + gap + '<td class="num">' + t.rest + "주</td></tr>";
+        }).join("") + "</table></li>";
+
+      var check;
+      if (later) {
+        check = "이 판정이 걸린 장(" + W.close + " 마감)은 끝났다. " + (HR.maxHold === 1
+          ? "<b>" + D.barDay + " 장이나 그 전에 샀다면 보유 기한이 지났다 — 남은 것은 다음 거래 기회에 바로 판다.</b> " +
+            (GO ? W.open + " 개장에 샀다면 기한은 새 판정(" + W.refresh + "쯤)에 나온다. " : "")
+          : "") + "추세 꺾임 구간은 새 판정이 올라오면(" + W.refresh + "쯤) 다시 계산된다.";
+      } else {
+        var band = P.band
+          ? "<b>" + W.close + "</b> 마감 종가가 <b class=\"num\">" + money(P.band.lo) + " ~ " + money(P.band.hi) +
+            "</b>면 <b>전량</b> 판다. 이익은 났지만 10일 평균 아래로 끝나 추세가 꺾인 것이다. "
+          : "";
+        var time = HR.maxHold === 1
+          ? "산 다음 거래일 종가까지만 들고 간다 — " + D.barDay + " 장에 샀다면 <b>" + W.close + "</b> 마감 전에 남은 것을 판다."
+          : "산 뒤 " + HR.maxHold + "거래일째 종가까지만 들고 간다.";
+        check = band + (band ? "그리고 " : "") + time;
+      }
+      h += '<li><span class="k">② 장 마감 직전(한국 ' + closeAt + " 전)에 볼 것</span>" + check + "</li>";
+      h += '<li><span class="k">③ 이 아래로 가면 — 손절</span><b class="num">' + money(P.stop) +
+        "</b>에 닿으면 <b>전량</b> 판다(" + stopWhy + "). " + ref + "보다 " + absPct(P.stop / price - 1) + " 아래다.</li>";
+      h += "</ol>";
+    }
+    h += '<p class="hold-foot">평단은 실제 체결가, 팔 때는 지정가로 파는 것으로 계산했다. 환율은 ' + D.barDay +
+      " 종가 때 " + F.rate.toLocaleString("ko-KR") + "원" + (bfx > 0 ? "" : "(살 때 환율을 넣지 않아 같은 값으로 봤다)") +
+      ". 익절 수량은 첫 익절 전 수량의 비율이고, 마지막 단계는 남은 것 전부다.</p>";
+
+    $("holdOut").innerHTML = h;
+    $("holdOut").hidden = false;
+    $("holdEmpty").hidden = true;
+  }
+  HOLD.forEach(function(k){ $(k).addEventListener("input", renderHold); });
+  holdLoad();
+  /* 선택 칸에 값이 남아 있으면 펼쳐 둔다. 접힌 칸의 옛 "지금 가격" 이 계산에 몰래 쓰이면 안 된다. */
+  if ($("cur").value || $("efx").value || $("lim").value || $("base0").value) { $("holdMore").open = true; }
+  renderHold();
+  /* 열어 둔 탭이 장 마감을 넘기면 ② 가 바뀌어야 한다. keepFresh 는 이 칸보다 먼저 돌아서
+     (입력 불러오기 전) 거기에 걸면 빈 입력을 저장해 버린다. 그래서 따로 건다. */
+  setInterval(renderHold, 60 * 1000);
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) { renderHold(); } });
+  window.addEventListener("pageshow", renderHold);
 })();
 </script>

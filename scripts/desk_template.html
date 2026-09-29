@@ -216,6 +216,8 @@ footer a { color:var(--ink-2); }
       <div class="inrow">
         <div><label for="lim">내 한도 (원) · 한 번에 들고 있을 최대 금액</label>
           <input type="number" id="lim" min="0" step="10000" placeholder="비워 두면 계산 안 함"></div>
+        <div><label for="base0">익절 전 수량 · 익절로 일부 팔았으면</label>
+          <input type="number" id="base0" min="0" step="1" placeholder="안 팔았으면 비움"></div>
       </div>
       <div id="posout" hidden>
         <div class="strip" id="posstrip" style="margin-top:4px"></div>
@@ -457,72 +459,138 @@ footer a { color:var(--ink-2); }
         g.now + "</div></div>";
     }).join("");
   })();
-  /* pnl.krw_cost / krw_proceeds 를 주당 기준으로 그대로 옮긴 것.
-     매수측 요율을 매도에도 쓰던 시절 저장소 엔진과 갈라졌다(대칭 설정에서도 0.29%p,
-     환전 우대가 없는 설정이면 0.4%p 이상). 수수료·SEC·주당 정액 TAF·양쪽 환전
-     스프레드를 전부 쓴다. 슬리피지는 체결가에 먼저 붙인다(AGENTS.md 도메인 함정). */
-  function krwReturn(buy, bfx, sell, sfx) {
-    var inUsd = buy * (1 + C.slip), outUsd = sell * (1 - C.slip);
-    var cost = inUsd * (1 + C.fee) * bfx * (1 + C.fxSpread);
-    var fees = outUsd * (C.sellFee + C.secFee) + C.taf;
-    var proc = Math.max(0, outUsd - fees) * sfx * (1 - C.fxSpreadSell);
-    return proc / cost - 1;
+  /* ── 들고 있을 때: 원화 손익과 파는 계획 ─────────────
+     pnl.krw_cost / krw_proceeds / required_sell_price_usd 를 1주 기준으로 옮겼다.
+     평단은 이미 체결된 실제 값이고, 팔 때는 지정가로 판다고 본다. 그래서 슬리피지를
+     붙이지 않는다. 슬리피지는 가상의 체결가를 쓰는 백테스트용이라 실제 평단에 붙이면
+     두 번 센다(예전 상황실 계산기가 그래서 익절가를 0.3%쯤 높게 적었다).
+     heldCost ~ sellPlan 은 한눈에·상황실에 글자까지 같게 들어 있다. 테스트가 대조하고
+     node 로 돌려 pnl·strategy 와 같은 값인지 맞대 본다. */
+  function heldCost(C, avg, bfx) {
+    return avg * (1 + C.fee) * bfx * (1 + C.fxSpread);
   }
-  function priceFor(target, avg, bfx, sfx) {
-    var lo = 0.01, hi = avg * 8;
-    for (var i = 0; i < 90; i++) {
-      var m = (lo + hi) / 2;
-      if (krwReturn(avg, bfx, m, sfx) >= target) { hi = m; } else { lo = m; }
-    }
-    return hi;
+  function heldProceeds(C, price, sfx) {
+    return Math.max(0, price - price * (C.sellFee + C.secFee) - C.taf) * sfx * (1 - C.fxSpreadSell);
+  }
+  function heldReturn(C, avg, bfx, price, sfx) {
+    return heldProceeds(C, price, sfx) / heldCost(C, avg, bfx) - 1;
+  }
+  function heldPriceFor(C, target, avg, bfx, sfx) {
+    var need = (1 + target) * heldCost(C, avg, bfx) / (sfx * (1 - C.fxSpreadSell));
+    return (need + C.taf) / (1 - C.sellFee - C.secFee);
+  }
+  function roundHalfEven(x) {
+    var r = Math.round(x);
+    return Math.abs(x - Math.trunc(x)) === 0.5 && r % 2 !== 0 ? r - 1 : r;
+  }
+  /* pos = { qty 지금 보유, avg 평단, bfx 살 때 환율, lim 내 한도(원, 0 이면 없음),
+             base0 첫 익절 전 수량(0 이면 지금 보유) }
+     mkt = { price 기준 가격, fx 지금 환율, below 추세 꺾임이 걸리는 가장 높은 종가, atr 달러 ATR }
+     - 익절 계단은 decide 처럼 "첫 익절 전 수량" 에 고정한다. 지금 남은 수량으로 다시 짜면
+       판 계단이 또 나타나 +5% 에서 거의 다 팔게 된다. 이미 판 만큼은 앞 계단부터 지운다.
+     - 손절은 원화 하드 스톱과 달러 손절(평단 − stopAtr×ATR, 클램프) 중 높은 쪽이다.
+       엔진은 1차 진입가와 진입 때 ATR 을 쓰므로 이 값은 근사다.
+     - 추세 꺾임은 "원화 수익률 > trendFloor" 이고 "종가 < 빠른 평균" 일 때다. 둘 다 엄격한
+       부등호라 구간 끝을 센트 안쪽으로 잡는다(lo 는 한 센트 위, hi 는 mkt.below). */
+  function sellPlan(C, R, pos, mkt) {
+    var cost = heldCost(C, pos.avg, pos.bfx);
+    var allowed = pos.lim > 0 ? Math.floor(pos.lim / cost) : null;
+    var excess = allowed === null ? 0 : Math.max(0, pos.qty - allowed);
+    var hold = pos.qty - excess;
+    var start = pos.base0 > pos.qty ? pos.base0 : pos.qty;
+    var base = Math.max(hold, allowed === null ? start : Math.min(start, allowed));
+    var sold = base - hold, left = base, seen = 0;
+    var ladder = R.ladder.map(function (t, i) {
+      var q = i === R.ladder.length - 1 ? left
+        : Math.min(left, Math.max(1, roundHalfEven(base * t.f)));
+      left -= q;
+      var gone = Math.min(q, Math.max(0, sold - seen));
+      seen += q;
+      return { k: t.k, price: heldPriceFor(C, t.k, pos.avg, pos.bfx, mkt.fx), qty: q, rest: q - gone };
+    });
+    var krwStop = heldPriceFor(C, R.hardStop, pos.avg, pos.bfx, mkt.fx);
+    var raw = mkt.atr > 0 ? R.stopAtr * mkt.atr / pos.avg : R.maxStopPct;
+    var usdPct = Math.min(Math.max(raw, R.minStopPct), R.maxStopPct);
+    var usdStop = pos.avg * (1 - usdPct);
+    var lo = R.trendFloor === null || R.trendFloor === undefined ? null
+      : (Math.floor(heldPriceFor(C, R.trendFloor, pos.avg, pos.bfx, mkt.fx) * 100) + 1) / 100;
+    var ret = heldReturn(C, pos.avg, pos.bfx, mkt.price, mkt.fx);
+    return {
+      ret: ret,
+      pnl: pos.qty * cost * ret,
+      breakeven: heldPriceFor(C, 0, pos.avg, pos.bfx, mkt.fx),
+      stop: Math.max(krwStop, usdStop),
+      stopBy: usdStop > krwStop ? "usd" : "krw",
+      usdPct: usdPct,
+      used: pos.lim > 0 ? pos.qty * cost / pos.lim : null,
+      excess: excess,
+      hold: hold,
+      base: base,
+      sold: sold,
+      ladder: ladder,
+      band: lo !== null && lo <= mkt.below ? { lo: lo, hi: mkt.below } : null
+    };
   }
   var KEY = "koru-desk-pos";
   function save() {
     try {
       localStorage.setItem(KEY, JSON.stringify({
         qty: $("qty").value, avg: $("avg").value, efx: $("efx").value, cur: $("cur").value,
-        lim: $("lim").value
+        lim: $("lim").value, base0: $("base0").value
       }));
     } catch (e) { /* 저장소 차단 환경 */ }
   }
   function load() {
     try {
       var s = JSON.parse(localStorage.getItem(KEY) || "{}");
-      ["qty", "avg", "efx", "cur", "lim"].forEach(function (k) { if (s[k]) { $(k).value = s[k]; } });
+      ["qty", "avg", "efx", "cur", "lim", "base0"].forEach(function (k) { if (s[k]) { $(k).value = s[k]; } });
     } catch (e) { /* 무시 */ }
   }
   var POS = null;
   function renderPos() {
-    var qty = parseFloat($("qty").value), avg = parseFloat($("avg").value);
-    var bfx = parseFloat($("efx").value) || D.fx;
-    var cur = parseFloat($("cur").value) || D.price;
+    var qty = Math.floor(parseFloat($("qty").value)), avg = parseFloat($("avg").value);
+    /* 음수·빈칸은 한눈에 페이지와 같이 기본값으로. 두 페이지가 같은 저장값을 읽는다. */
+    var efx = parseFloat($("efx").value), curIn = parseFloat($("cur").value);
+    var bfx = efx > 0 ? efx : D.fx;
+    var cur = curIn > 0 ? curIn : D.price;
+    var lim = parseFloat($("lim").value), base0 = Math.floor(parseFloat($("base0").value));
     if (!(qty > 0) || !(avg > 0)) {
       $("posout").hidden = true; $("posempty").hidden = false; POS = null; return;
     }
     $("posout").hidden = false; $("posempty").hidden = true;
-    var r = krwReturn(avg, bfx, cur, D.fx);
-    var costKrw = qty * avg * (1 + C.slip) * (1 + C.fee) * bfx * (1 + C.fxSpread);
-    var pnl = costKrw * r;
-    var be = priceFor(0, avg, bfx, D.fx), hs = priceFor(R.hardStop, avg, bfx, D.fx);
-    POS = { qty: qty, avg: avg, bfx: bfx, cur: cur, r: r, pnl: pnl, be: be, hs: hs, val: qty * cur * D.fx };
+    /* 한눈에 페이지와 같은 sellPlan 을 쓴다. 같은 입력이면 두 페이지가 같은 값을 적는다. */
+    var plan = sellPlan(C, R,
+      { qty: qty, avg: avg, bfx: bfx, lim: lim > 0 ? lim : 0, base0: base0 > 0 ? base0 : 0 },
+      { price: cur, fx: D.fx, below: D.trendBelow, atr: D.atr });
+    var costOne = heldCost(C, avg, bfx);
+    var st = stageOf(W, viewNow(), LOADED);
+    var later = st === "after" || st === "reload" || st === "late";
+    var breached = cur <= plan.stop;
+    var fired = !!plan.band && D.price >= plan.band.lo && D.price <= plan.band.hi;
+    POS = { qty: qty, avg: avg, bfx: bfx, cur: cur, r: plan.ret, pnl: plan.pnl, be: plan.breakeven,
+      hs: plan.stop, val: qty * cur * D.fx };
     $("posstrip").innerHTML = [
-      { k: "원화 수익률", v: pct(r), c: cls(r), n: "달러 " + pct(cur / avg - 1) },
-      { k: "평가손익", v: won(pnl), c: cls(pnl), n: "평가액 " + Math.round(qty * cur * D.fx).toLocaleString("ko-KR") + "원" },
-      { k: "본전", v: usd(be), c: "neu", n: pct(be / cur - 1, 1) + " 필요" },
-      { k: "손절", v: usd(hs), c: "down", n: "원화 " + pct(R.hardStop, 0) }
+      { k: "원화 수익률", v: pct(plan.ret), c: cls(plan.ret), n: "달러 " + pct(cur / avg - 1) },
+      { k: "평가손익", v: won(plan.pnl), c: cls(plan.pnl), n: "평가액 " + Math.round(POS.val).toLocaleString("ko-KR") + "원" },
+      { k: "본전", v: usd(plan.breakeven), c: "neu", n: pct(plan.breakeven / cur - 1, 1) + " 필요" },
+      { k: "손절", v: usd(plan.stop), c: "down",
+        n: breached ? "이미 아래 — 지금 전량"
+          : plan.stopBy === "usd" ? "달러 −" + (plan.usdPct * 100).toFixed(1) + "% (ATR 기준)" : "원화 " + pct(R.hardStop, 0) }
     ].map(function (s) {
       return '<div class="stat"><div class="k">' + s.k + '</div><div class="v ' + s.c + '">' +
         s.v + '</div><div class="n">' + s.n + "</div></div>";
     }).join("");
 
-    var rows = R.ladder.map(function (t) {
-      var p = priceFor(t.k, avg, bfx, D.fx);
-      var q = Math.round(qty * t.f);
-      var realized = (q * p * (1 - C.slip) * (1 - C.fee) * D.fx * (1 - C.fxSpread)) - costKrw * q / qty;
-      var hit = cur >= p;
+    var rows = plan.ladder.map(function (t) {
+      if (t.rest === 0) {
+        return '<tr><td>원화 +' + Math.round(t.k * 100) + '%</td><td class="num">' + usd(t.price) +
+          '</td><td class="num">—</td><td class="num">팔았음</td><td class="num">—</td></tr>';
+      }
+      var realized = t.rest * (heldProceeds(C, t.price, D.fx) - costOne);
+      var hit = cur >= t.price;
       return '<tr class="' + (hit ? "hit" : "") + '"><td>원화 +' + Math.round(t.k * 100) +
-        '%</td><td class="num">' + usd(p) + '</td><td class="num">' + pct(p / cur - 1, 1) +
-        '</td><td class="num">' + q + '주</td><td class="num ' + cls(realized) + '">' +
+        '%</td><td class="num">' + usd(t.price) + '</td><td class="num">' + pct(t.price / cur - 1, 1) +
+        '</td><td class="num">' + t.rest + '주</td><td class="num ' + cls(realized) + '">' +
         won(realized) + "</td></tr>";
     }).join("");
     $("ladder").innerHTML =
@@ -532,21 +600,48 @@ footer a { color:var(--ink-2); }
        환산된 값이라 실제 보유와 비교하면 엉뚱한 배수가 나온다). 그래서 직접 넣게 하고
        이 브라우저에만 저장한다. */
     var dayDecay = POS.val * Math.abs(D.decayDaily);
-    var lim = parseFloat($("lim").value);
-    var used = lim > 0 ? POS.val / lim : null;
-    $("posnote").innerHTML = "이 크기면 감쇠가 <b>하루 약 " +
-      Math.round(dayDecay).toLocaleString("ko-KR") + "원</b>이다. " +
-      (used === null
-        ? "위에 한도를 넣으면 지금 몇 %를 쓰고 있는지 보여 준다."
-        : "평가액이 내 한도의 <b>" + Math.round(used * 100) + "%</b>다." +
-          (used > 1 ? " <b>한도를 넘었다. 더 사지 않는다.</b>" : ""));
+    var notes = [];
+    if (breached || fired) {
+      notes.push("<b>지금 전량 판다.</b> " + (breached
+        ? "가격이 손절선 " + usd(plan.stop) + "에 닿았다."
+        : String(D.barDay) + " 종가 " + usd(D.price) + "가 추세 꺾임 구간(" + usd(plan.band.lo) + " ~ " +
+          usd(plan.band.hi) + ")이었다. " + String(D.barDay) + " 장이나 그 전에 샀다면 규칙대로 그 종가에 " +
+          "전량 파는 날이었다."));
+    }
+    notes.push("이 크기면 감쇠가 <b>하루 약 " + Math.round(dayDecay).toLocaleString("ko-KR") + "원</b>이다.");
+    if (plan.excess > 0) {
+      notes.push("<b>한도를 " + plan.excess + "주 넘었다(한도의 " + Math.round(plan.used * 100) +
+        "%). 넘친 만큼은 본전 " + usd(plan.breakeven) + " 위에서 먼저 판다.</b> 익절표만 남는 " + plan.hold +
+        "주 기준이고, 마감 전 정리와 손절은 넘친 것까지 전부에 적용된다.");
+    } else if (plan.used !== null) {
+      notes.push("산 금액이 내 한도의 <b>" + Math.round(plan.used * 100) + "%</b>다.");
+    } else {
+      notes.push("위에 한도를 넣으면 지금 몇 %를 쓰고 있는지 보여 준다.");
+    }
+    if (later) {
+      notes.push("이 판정이 걸린 장(" + W.close + " 마감)은 끝났다." + (R.maxHold === 1
+        ? " " + String(D.barDay) + " 장이나 그 전에 샀다면 보유 기한이 지났다 — 남은 것은 다음 거래 기회에 바로 판다."
+        : "") + " 추세 꺾임 구간은 새 판정이 올라오면 다시 계산된다.");
+    } else {
+      if (plan.band) {
+        notes.push("<b>" + W.close + "</b> 마감 종가가 <b>" + usd(plan.band.lo) + " ~ " + usd(plan.band.hi) +
+          "</b>면 전량 판다(이익 중 추세 꺾임).");
+      }
+      notes.push(R.maxHold === 1
+        ? "산 다음 거래일 종가까지만 들고 간다(" + String(D.barDay) + " 장에 샀다면 " + W.close + " 마감 전)."
+        : "산 뒤 " + R.maxHold + "거래일째 종가까지만 들고 간다.");
+    }
+    notes.push("평단은 실제 체결가, 팔 때는 지정가로 파는 것으로 계산했다. 익절 수량은 첫 익절 전 수량의 비율이다.");
+    $("posnote").innerHTML = notes.join(" ");
     save();
   }
-  ["qty", "avg", "efx", "cur", "lim"].forEach(function (k) {
+  ["qty", "avg", "efx", "cur", "lim", "base0"].forEach(function (k) {
     $(k).addEventListener("input", renderPos);
   });
   $("cur").placeholder = String(D.price);
   load(); renderPos();
+  /* 열어 둔 탭이 장 마감을 넘기면 마감 전 문구가 바뀌어야 한다. */
+  setInterval(renderPos, 60 * 1000);
 
   /* ── 테마 ─────────────────────────────── */
   var root = document.documentElement;

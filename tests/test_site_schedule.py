@@ -414,7 +414,7 @@ function el(id) {
     set(t, k, v) { t[k] = v; return true; },
   });
 }
-const store = {};
+const store = Object.assign({}, input.storage || {});
 const storage = {
   getItem(k) { return k in store ? store[k] : null; },
   setItem(k, v) { store[k] = String(v); },
@@ -475,6 +475,7 @@ def _render(
     *,
     later_ms: int | None = None,
     search: str = "",
+    storage: dict[str, str] | None = None,
 ) -> dict[str, object]:
     """페이지 스크립트를 가짜 DOM 에서 실제로 돌려 요소별 글자를 돌려준다."""
     script = _logic(TEMPLATES[page].read_text(encoding="utf-8"))
@@ -485,6 +486,7 @@ def _render(
             "search": search,
             "now": now_ms,
             "later": later_ms,
+            "storage": storage or {},
         },
         ensure_ascii=False,
     )

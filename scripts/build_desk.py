@@ -38,7 +38,9 @@ from _site_common import (  # noqa: E402
     SITE_PERIOD,
     WEEKDAY_KO,
     anonymize,
+    cent_below,
     confirmed_bars,
+    cost_payload,
     render,
     resolve_config,
     verdict_schedule,
@@ -178,6 +180,8 @@ def build_payload(
         "atr": round(ind.atr(bars, cfg.atr_period) or 0.0, 2),
         "atrPct": round(ind.atr_pct(bars, cfg.atr_period) or 0.0, 4),
         "ema10": round(ema_fast, 2),
+        # 추세 꺾임이 걸리는 가장 높은 종가. ema10 을 반올림한 값을 쓰면 1센트 어긋난다.
+        "trendBelow": cent_below(ema_fast) if ema_fast > 0 else 0.0,
         "ema30": round(ema_slow, 2),
         "emaGap": round(ema_fast / ema_slow - 1.0, 4) if ema_slow else 0.0,
         "rsi": round(ind.rsi(closes, cfg.rsi_period) or 0.0, 1),
@@ -199,30 +203,13 @@ def build_payload(
         "ewyVol": round(ewy_vol, 4),
         "ewyVolSource": vol_source,
         "configName": config_name,
-        "cost": {
-            # ★ 페이지의 krwReturn 은 pnl.krw_cost/krw_proceeds 를 그대로 옮긴 식이다.
-            # 매수측만 보내던 시절에는 페이지가 그 한 쌍을 매도측에도 써서
-            # 본전·손절·익절 6단 가격이 저장소 엔진과 갈라졌다(대칭 설정에서도 0.29%p).
-            # 스프레드는 반드시 effective_* 를 보낸다 — fx_mode 가 HOLD_USD 면
-            # 환전을 안 하므로 원시 스프레드를 보내면 없는 비용을 계산하게 된다
-            # (왕복 0.641% vs 0.143%).
-            "fee": round(cfg.cost.buy_fee_rate, 6),
-            "sellFee": round(cfg.cost.sell_fee_rate, 6),
-            "secFee": round(cfg.cost.sec_fee_rate, 8),
-            "taf": round(cfg.cost.finra_taf_per_share, 8),
-            "slip": round(cfg.cost.slippage_rate, 6),
-            "fxSpread": round(cfg.cost.effective_buy_spread, 6),
-            "fxSpreadSell": round(cfg.cost.effective_sell_spread, 6),
-            # ★ round_trip_drag 는 수수료와 환전 스프레드만 센다. krw_cost/krw_proceeds
-            # 가 슬리피지를 한 번도 참조하지 않기 때문이다(AGENTS.md 도메인 함정).
-            # 슬리피지는 체결가 자체에 붙으므로 왕복분 2배를 여기서 더해야 실전과 같다.
-            # 이걸 빼면 0.641% 가 나오는데 실제 왕복은 0.939% 다. 익절 1단이 +5% 인
-            # 전략에서 0.3%p 는 결론을 뒤집는 크기다.
-            "roundTrip": round(cfg.cost.round_trip_drag + 2.0 * cfg.cost.slippage_rate, 5),
-        },
+        # 비용과 파는 규칙은 한눈에 페이지와 같은 블록이다(_site_common).
+        "cost": cost_payload(cfg),
         "rules": {
             "hardStop": cfg.hard_stop_krw_return,
             "maxHold": cfg.max_holding_days,
+            # 이익 중 추세 꺾임 청산의 하한. None 이면 이 규칙을 안 쓴다.
+            "trendFloor": cfg.trend_break_min_krw_return,
             "stopAtr": cfg.stop_atr_multiple,
             "maxStopPct": cfg.max_stop_pct,
             "minStopPct": cfg.min_stop_pct,

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import re
 import sys
 from collections.abc import Sequence
@@ -209,6 +210,65 @@ def render(payload: dict[str, Any], template: Path, out: Path) -> Path:
         raise SystemExit("발행 파일에서 payload 블록을 찾지 못했다")
     json.loads(match.group(1))
     return out
+
+
+def cost_payload(cfg: StrategyConfig) -> dict[str, float]:
+    """페이지가 원화 손익을 계산할 때 읽는 비용 블록. 상황실과 한눈에가 같이 쓴다.
+
+    페이지의 ``heldCost``/``heldProceeds`` 는 :func:`koru_trade.pnl.krw_cost` /
+    :func:`~koru_trade.pnl.krw_proceeds` 를 그대로 옮긴 식이다. 매수측만 보내던
+    시절에는 페이지가 그 한 쌍을 매도측에도 써서 본전·손절·익절 가격이 저장소 엔진과
+    갈라졌다(대칭 설정에서도 0.29%p). 스프레드는 반드시 ``effective_*`` 를 보낸다 —
+    ``fx_mode`` 가 HOLD_USD 면 환전을 안 하므로 원시 스프레드를 보내면 없는 비용을
+    계산하게 된다(왕복 0.641% vs 0.143%).
+    """
+    c = cfg.cost
+    return {
+        "fee": round(c.buy_fee_rate, 6),
+        "sellFee": round(c.sell_fee_rate, 6),
+        "secFee": round(c.sec_fee_rate, 8),
+        "taf": round(c.finra_taf_per_share, 8),
+        "slip": round(c.slippage_rate, 6),
+        "fxSpread": round(c.effective_buy_spread, 6),
+        "fxSpreadSell": round(c.effective_sell_spread, 6),
+        # round_trip_drag 는 수수료와 환전 스프레드만 센다. krw_cost/krw_proceeds 가
+        # 슬리피지를 참조하지 않기 때문이다(AGENTS.md 도메인 함정). 가상의 진입·청산을
+        # 말할 때는 슬리피지 왕복분을 더해야 실전과 같다(0.641% 가 아니라 0.939%).
+        "roundTrip": round(c.round_trip_drag + 2.0 * c.slippage_rate, 5),
+    }
+
+
+def sell_rules(cfg: StrategyConfig) -> dict[str, Any]:
+    """들고 있을 때 파는 규칙. 페이지의 ``sellPlan`` 이 이 값만 읽는다.
+
+    ``strategy.decide`` 의 청산 문턱과 같다: 원화 하드 스톱, 달러 손절(1차 진입가 −
+    ``stopAtr``×ATR, ``minStopPct``~``maxStopPct`` 로 클램프 — 둘 중 높은 쪽이 먼저
+    걸린다), 이익 중 추세 꺾임(``trendFloor`` 초과 + 종가가 빠른 평균 아래), 타임
+    스톱(``maxHold`` 영업일), 원화 익절 계단(``ladder`` — 비율은 첫 익절 전 수량 기준,
+    마지막 계단은 잔량 전부).
+
+    본전 스톱(1단 익절 뒤)·트레일링(2단 뒤)은 싣지 않는다. 운용 설정은 보유 1일이라
+    그 둘이 걸리는 종가에서는 타임 스톱이 먼저 전량을 판다(3년 백테스트에서 둘을 꺼도
+    결과가 비트 단위로 같았다). 보유 기간을 늘리면 여기에 더해야 한다.
+    """
+    return {
+        "ladder": [{"k": s.krw_return, "f": s.sell_fraction} for s in cfg.take_profit],
+        "hardStop": cfg.hard_stop_krw_return,
+        "stopAtr": cfg.stop_atr_multiple,
+        "minStopPct": cfg.min_stop_pct,
+        "maxStopPct": cfg.max_stop_pct,
+        "trendFloor": cfg.trend_break_min_krw_return,
+        "maxHold": cfg.max_holding_days,
+    }
+
+
+def cent_below(value: float) -> float:
+    """``value`` 보다 **엄격히** 작은 가장 큰 센트.
+
+    추세 꺾임은 "종가 < 빠른 평균" 이라 평균값 자체에서는 걸리지 않는다. 평균을
+    반올림해 적으면($21.0251 → $21.03) 그 값으로 끝난 날 걸린다고 잘못 안내하게 된다.
+    """
+    return (math.ceil(round(value * 100, 6)) - 1) / 100
 
 
 def threshold_close(bars: Any, cfg: StrategyConfig) -> float:

@@ -32,9 +32,12 @@ from _site_common import (  # noqa: E402
     SITE_PERIOD,
     WEEKDAY_KO,
     anonymize,
+    cent_below,
     confirmed_bars,
+    cost_payload,
     render,
     resolve_config,
+    sell_rules,
     threshold_close,
     verdict_schedule,
 )
@@ -196,6 +199,9 @@ def build_payload(
         "checks": checks,
         "fx": {
             "now": round(fx[-1]),
+            # 보유 계산용. 상황실 payload 의 fx 와 같은 자릿수여야 두 페이지가 같은 가격을 낸다
+            # (정수로 반올림한 값을 쓰던 시절 익절가가 1센트씩 갈렸다).
+            "rate": round(fx[-1], 1),
             "from": bars[-CHART_BARS].ts.strftime("%m/%d"),
             "to": bars[-1].ts.strftime("%m/%d"),
             "series": [round(v) for v in fx_win],
@@ -218,6 +224,13 @@ def build_payload(
         # 다음 장 종가가 이 값 이상이어야 그다음 개장에 사도 된다(또는 초록불이
         # 유지된다). 빠른 평균값과 다를 수 있다 — _site_common.threshold_close 참고.
         "flipAt": round(threshold_close(bars, cfg), 2),
+        # 들고 있을 때 파는 계획. 수량·평단은 브라우저에만 있고 여기엔 규칙만 싣는다.
+        "cost": cost_payload(cfg),
+        "sell": sell_rules(cfg),
+        # 달러 손절(평단 − 2×ATR, 클램프)을 페이지가 계산한다. 상황실과 같은 자릿수.
+        "atr": round(ind.atr(bars, cfg.atr_period) or 0.0, 2),
+        # 추세 꺾임이 걸리는 가장 높은 종가(빠른 평균보다 엄격히 아래인 센트).
+        "trendBelow": cent_below(line),
     }
 
 
