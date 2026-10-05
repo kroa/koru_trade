@@ -14,7 +14,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from check_market import BoxRange, compute_box_range, format_report  # noqa: E402
+from check_market import (  # noqa: E402
+    BoxRange,
+    compute_box_range,
+    format_report,
+    generate_trade_action_guide,
+)
 
 from koru_trade.models import Bar  # noqa: E402
 
@@ -61,7 +66,40 @@ def test_박스권_하단_판정() -> None:
     assert "박스권 하단" in box.advice
 
 
-def test_리포트_포맷_조립() -> None:
+def test_매매_행동_가이드_생성() -> None:
+    box_top = BoxRange(
+        low_20d=18.0,
+        high_20d=24.0,
+        pct_20d=0.85,
+        low_60d=15.0,
+        high_60d=26.0,
+        pct_60d=0.70,
+        zone="상단",
+        advice="상단 조언",
+    )
+    buy_g, sell_g = generate_trade_action_guide(
+        allowed=True,
+        blockers=[],
+        box=box_top,
+        cur_price=23.5,
+        limit_price=23.0,
+    )
+    assert "추격 매수 금지" in buy_g
+    assert "적극 분할 익절 구간" in sell_g
+
+    # 차단 상태일 때
+    buy_blocked, _ = generate_trade_action_guide(
+        allowed=False,
+        blockers=["추세방향"],
+        box=box_top,
+        cur_price=21.0,
+        limit_price=21.0,
+    )
+    assert "매수 보류 / 관망" in buy_blocked
+    assert "추세방향" in buy_blocked
+
+
+def test_리포트_포맷_조립_오전_오후() -> None:
     bars = _make_mock_bars([22.0])
     box = BoxRange(
         low_20d=18.0,
@@ -74,7 +112,9 @@ def test_리포트_포맷_조립() -> None:
         advice="테스트 조언 문구",
     )
     when = {"open": "10/05(월) 22:30", "close": "10/06(화) 05:00"}
-    report = format_report(
+
+    # 1. 야간 개장 전 모드
+    report_eve = format_report(
         when=when,
         last_bar=bars[0],
         cur_price=22.50,
@@ -84,11 +124,26 @@ def test_리포트_포맷_조립() -> None:
         blockers=[],
         box=box,
         gemini_summary="테스트 AI 요약입니다.",
+        mode="premarket",
     )
+    assert "KORU 본장 개장 전 체크" in report_eve
+    assert "10/05(월) 22:30" in report_eve
+    assert "🟢 [매수 허용]" in report_eve
+    assert "지금 매수해야 할까?" in report_eve
+    assert "지금 매도해야 할까?" in report_eve
+    assert "Google Gemini AI 마켓 인사이트:" in report_eve
 
-    assert "KORU 미국 본장 개장 전 체크" in report
-    assert "10/05(월) 22:30" in report
-    assert "🟢 [매수 허용]" in report
-    assert "테스트 조언 문구" in report
-    assert "Google Gemini AI 마켓 인사이트:" in report
-    assert "테스트 AI 요약입니다." in report
+    # 2. 오전 모드
+    report_morn = format_report(
+        when=when,
+        last_bar=bars[0],
+        cur_price=22.50,
+        price_source="live",
+        limit_price=22.53,
+        allowed=True,
+        blockers=[],
+        box=box,
+        gemini_summary=None,
+        mode="morning",
+    )
+    assert "KORU 오전 정기 브리핑" in report_morn

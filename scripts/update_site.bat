@@ -58,4 +58,6 @@ if errorlevel 1 (
     echo [%DATE% %TIME%] no change - skipped >> "%LOG%"
 )
 
+".venv\Scripts\python.exe" scripts\check_market.py --notify --mode morning >> "%LOG%" 2>&1
+
 exit /b 0

@@ -25,7 +25,7 @@ set "LOG=logs\check_market.log"
 echo. >> "%LOG%"
 echo [%DATE% %TIME%] pre-market check start >> "%LOG%"
 
-".venv\Scripts\python.exe" scripts\check_market.py --notify >> "%LOG%" 2>&1
+".venv\Scripts\python.exe" scripts\check_market.py --notify --mode premarket >> "%LOG%" 2>&1
 if errorlevel 1 (
     echo [%DATE% %TIME%] check failed >> "%LOG%"
     exit /b 1
