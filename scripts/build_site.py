@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -78,7 +79,9 @@ def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
             "wins": sum(1 for t in res.trades if t.is_win),
             "winRate": round(metrics.win_rate, 4),
             "total": round(metrics.total_return, 4),
-            "pf": round(metrics.profit_factor, 2),
+            "pf": (
+                round(metrics.profit_factor, 2) if math.isfinite(metrics.profit_factor) else 99.99
+            ),
             "mdd": round(metrics.max_drawdown, 4),
             "sharpe": round(metrics.sharpe, 2),
             "wfPos": sum(1 for x in folds if x > 0),
