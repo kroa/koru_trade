@@ -185,6 +185,7 @@ def build_payload(
         "ema30": round(ema_slow, 2),
         "emaGap": round(ema_fast / ema_slow - 1.0, 4) if ema_slow else 0.0,
         "rsi": round(ind.rsi(closes, cfg.rsi_period) or 0.0, 1),
+        "rsi5": round(ind.rsi(closes, 5) or 0.0, 1),
         "adx": round(ind.adx(bars, 14) or 0.0, 1),
         "allowed": bool(signal.allowed),
         "blockers": [c.name for c in signal.blockers],

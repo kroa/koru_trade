@@ -392,6 +392,7 @@ footer a { color:var(--ink-2); }
     ["EMA 격차", pct(D.emaGap, 2)],
     ["ATR (14)", usd(D.atr) + "  (" + (D.atrPct * 100).toFixed(1) + "%)"],
     ["RSI (14)", String(D.rsi)],
+    ["단기 RSI (5)", String(D.rsi5 || "-") + (D.rsi5 && D.rsi5 <= 30 ? " (과매도 침체)" : "")],
     ["ADX (14)", String(D.adx)],
     ["기초지수 변동성", (D.ewyVol * 100).toFixed(2) + "%  (" + VOL_SRC + ")"],
     ["만든 설정", D.configName || "-"]

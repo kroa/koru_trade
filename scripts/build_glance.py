@@ -148,6 +148,8 @@ def build_payload(
     price = closes[-1]
     line = ind.ema(closes, cfg.ema_fast) or price
     gap = max(0.0, line - price)
+    rsi14 = round(ind.rsi(closes, cfg.rsi_period) or 0.0, 1)
+    rsi5 = round(ind.rsi(closes, 5) or 0.0, 1)
 
     checks = []
     for c in signal.checks:
@@ -157,7 +159,8 @@ def build_payload(
                 f"검사 이름 {c.name!r} 의 일상어 번역이 PLAIN 에 없다. "
                 "번역을 추가하지 않으면 화면에 지표 이름이 그대로 나간다"
             )
-        checks.append({"ok": bool(c.passed), "plain": plain})
+        extra = f" (RSI {rsi14})" if c.name == "모멘텀(RSI)" else ""
+        checks.append({"ok": bool(c.passed), "plain": plain + extra})
 
     blocked = [c for c in signal.checks if not c.passed]
     trend = next((c for c in signal.checks if c.name == TREND_CHECK), None)
@@ -232,6 +235,10 @@ def build_payload(
         "atr": round(ind.atr(bars, cfg.atr_period) or 0.0, 2),
         # 추세 꺾임이 걸리는 가장 높은 종가(빠른 평균보다 엄격히 아래인 센트).
         "trendBelow": cent_below(line),
+        "rsi": {
+            "rsi14": rsi14,
+            "rsi5": rsi5,
+        },
     }
 
 

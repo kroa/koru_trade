@@ -292,6 +292,15 @@ svg{display:block;width:100%;height:auto;max-width:100%}
     <p class="subnote" id="subnote" hidden>—</p>
   </div>
 
+  <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;padding:12px 16px;background:var(--paper-2);border:1px solid var(--rule);font-size:13px;align-items:center;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase;">모멘텀 RSI</span>
+    <span>확정 종가 RSI(14): <b style="font-family:'IBM Plex Mono',monospace;font-weight:600;" id="rsi14Val">—</b></span>
+    <span style="color:var(--rule);">|</span>
+    <span>단기 RSI(5): <b style="font-family:'IBM Plex Mono',monospace;font-weight:600;" id="rsi5Val">—</b></span>
+    <span style="color:var(--rule);">|</span>
+    <span style="font-size:12px;color:var(--ink-2);" id="rsiStatusNote">—</span>
+  </div>
+
   <section>
     <div class="shead"><h2>얼마나 모자란가</h2><span class="tag">확대 도면</span></div>
     <p class="sdesc" id="gapDesc">—</p>
@@ -402,8 +411,22 @@ svg{display:block;width:100%;height:auto;max-width:100%}
   var $ = function(id){ return document.getElementById(id); };
   var GO = D.allowed;
 
-  /* ── 판권 ─────────────────────────────── */
+  /* ── 판권 및 RSI ──────────────────────── */
   $("stamp").textContent = D.stamp;
+  if (D.rsi) {
+    if ($("rsi14Val")) { $("rsi14Val").textContent = D.rsi.rsi14.toFixed(1); }
+    if ($("rsi5Val")) {
+      $("rsi5Val").textContent = D.rsi.rsi5.toFixed(1);
+      if (D.rsi.rsi5 <= 30) { $("rsi5Val").style.color = "var(--stop)"; }
+    }
+    if ($("rsiStatusNote")) {
+      if (D.rsi.rsi5 <= 30) {
+        $("rsiStatusNote").innerHTML = '<b style="color:var(--stop);">단기 과매도(20대) 침체 구간</b> · 반등 통계 유효';
+      } else {
+        $("rsiStatusNote").textContent = "중립/안정 구간";
+      }
+    }
+  }
 
   /* ── 판정이 걸린 장이 지났나 ───────────── */
   /* 판정은 하루에 한 번(확정 종가) 바뀌는데 페이지는 그 사이 내내 열려 있다.

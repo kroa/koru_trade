@@ -59,10 +59,16 @@ def compute_rsi_swing_stats(bars: Sequence[Bar], period: int = 14) -> dict[str, 
     """RSI(period) <= 30 진입 시 N일 보유 수익률 및 승률 통계를 계산한다."""
     closes = [b.close for b in bars]
     if len(closes) < period + 25:
-        return {"current_rsi": 50.0, "events_count": 0, "stats": []}
+        return {
+            "current_rsi": 50.0,
+            "current_rsi_5": 50.0,
+            "events_count": 0,
+            "stats": [],
+        }
 
     rsis = [ind.rsi(closes[: i + 1], period) for i in range(len(closes))]
     curr_rsi = rsis[-1] if rsis[-1] is not None else 50.0
+    curr_rsi_5 = ind.rsi(closes, 5) or 50.0
 
     entry_indices = []
     for i in range(1, len(rsis)):
@@ -93,6 +99,7 @@ def compute_rsi_swing_stats(bars: Sequence[Bar], period: int = 14) -> dict[str, 
 
     return {
         "current_rsi": round(curr_rsi, 1),
+        "current_rsi_5": round(curr_rsi_5, 1),
         "events_count": len(entry_indices),
         "stats": stats,
     }
