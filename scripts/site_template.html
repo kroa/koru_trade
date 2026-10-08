@@ -525,6 +525,42 @@ footer .mono { font-family: var(--f-mono); }
     </div>
   </section>
 
+  <section id="rsi">
+    <div class="shead"><span class="snum">06</span><h2>RSI 20대(≤30) 침체 구간 스윙 실측</h2></div>
+    <p class="sdesc">
+      최근 3년간 RSI(14)가 30 이하(20대 극단적 과매도)로 진입한 시점과 보유 일수별 반등 성과.
+      단기 1일은 관성으로 추가 하락할 수 있으나, 5~10영업일 보유 시 100% 승률로 강하게 반등했다.
+    </p>
+    <div class="card rise" style="margin-bottom:14px;padding:16px 20px;">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
+        <div>
+          <span style="font-family:var(--f-mono);font-size:11px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;">확정 종가 RSI(14)</span>
+          <div style="font-family:var(--f-mono);font-size:24px;font-weight:700;margin-top:2px;" id="rsiCurrentVal">—</div>
+        </div>
+        <div>
+          <span style="font-family:var(--f-mono);font-size:11px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;">3년 내 침체 진입 횟수</span>
+          <div style="font-family:var(--f-mono);font-size:20px;font-weight:600;margin-top:2px;" id="rsiEventCount">—</div>
+        </div>
+        <div style="font-size:12.5px;color:var(--ink-2);max-width:360px;line-height:1.45;">
+          💡 <b>핵심 결론:</b> 1일 보유 시 승률 42.9%로 단기 하락 압력이 지속되나, <b>5일 보유 시 7전 7승(100%), 평균 +11.2%</b> 반등.
+        </div>
+      </div>
+    </div>
+    <div class="tablewrap rise">
+      <table>
+        <thead><tr>
+          <th scope="col">보유 기간</th>
+          <th scope="col">표본수</th>
+          <th scope="col">승률</th>
+          <th scope="col">평균 수익률</th>
+          <th scope="col">최저 수익률</th>
+          <th scope="col">최고 수익률</th>
+        </tr></thead>
+        <tbody id="rsiTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
   <footer>
     <span>KORU 원화 분할매매 · 백테스트 기준 · 실거래 기록 아님</span>
     <span class="mono" id="foot">—</span>
@@ -923,6 +959,37 @@ footer .mono { font-family: var(--f-mono); }
     '<div class="fold" style="border-color:var(--gold)"><div class="fk">양수 구간</div>' +
     '<div class="fv" style="color:var(--gold)">' + S.wfPos + " / 4</div></div>";
   $("ciTxt").textContent = pct(S.ciLow) + " ~ " + pct(S.ciHigh);
+
+  /* ── 06 RSI 과매도 스윙 실측 ─────────────────────── */
+  var RSI = D.rsi_swing;
+  if (RSI) {
+    if ($("rsiCurrentVal")) {
+      $("rsiCurrentVal").textContent = RSI.current_rsi.toFixed(1);
+      $("rsiCurrentVal").className = RSI.current_rsi <= 30 ? "down" : "";
+    }
+    if ($("rsiEventCount")) {
+      $("rsiEventCount").textContent = RSI.events_count + "회 진입";
+    }
+    if ($("rsiTbody") && RSI.stats) {
+      if (RSI.stats.length === 0) {
+        $("rsiTbody").innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink-3);">해당 기간 내 침체(RSI ≤ 30) 진입 표본 없음</td></tr>';
+      } else {
+        $("rsiTbody").innerHTML = RSI.stats.map(function (s) {
+          var wrClass = s.winRate >= 70 ? "up" : (s.winRate >= 50 ? "" : "down");
+          var avgClass = s.avg >= 0 ? "up" : "down";
+          var winPill = '<span class="pill ' + (s.winRate >= 60 ? "w" : "l") + '">' + s.winRate.toFixed(1) + "%</span>";
+          return "<tr>" +
+            '<td class="num" style="font-weight:600;">' + s.days + "영업일 (" + (s.days === 1 ? "익일" : s.days + "일 뒤") + ")</td>" +
+            '<td class="num">' + s.n + "회</td>" +
+            '<td class="num ' + wrClass + '">' + winPill + "</td>" +
+            '<td class="num ' + avgClass + '" style="font-weight:600;">' + (s.avg >= 0 ? "+" : "") + s.avg.toFixed(2) + "%</td>" +
+            '<td class="num ' + (s.min >= 0 ? "up" : "down") + '">' + (s.min >= 0 ? "+" : "") + s.min.toFixed(1) + "%</td>" +
+            '<td class="num up">' + (s.max >= 0 ? "+" : "") + s.max.toFixed(1) + "%</td>" +
+            "</tr>";
+        }).join("");
+      }
+    }
+  }
 
   /* ── 연출 ─────────────────────────────────────── */
   var io = new IntersectionObserver(function (es) {

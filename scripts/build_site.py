@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import math
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,49 @@ from koru_trade.strategy import entry_limit_price, evaluate_entry, plan_entry  #
 
 TEMPLATE = ROOT / "scripts" / "site_template.html"
 DEFAULT_OUT = ROOT / "build" / "koru_signals.html"
+
+
+def compute_rsi_swing_stats(bars: Sequence[Bar], period: int = 14) -> dict[str, Any]:
+    """RSI(period) <= 30 진입 시 N일 보유 수익률 및 승률 통계를 계산한다."""
+    closes = [b.close for b in bars]
+    if len(closes) < period + 25:
+        return {"current_rsi": 50.0, "events_count": 0, "stats": []}
+
+    rsis = [ind.rsi(closes[: i + 1], period) for i in range(len(closes))]
+    curr_rsi = rsis[-1] if rsis[-1] is not None else 50.0
+
+    entry_indices = []
+    for i in range(1, len(rsis)):
+        r_prev = rsis[i - 1]
+        r_curr = rsis[i]
+        if r_prev is not None and r_curr is not None and r_curr <= 30.0 and r_prev > 30.0:
+            entry_indices.append(i)
+
+    durations = [1, 3, 5, 10, 20]
+    stats = []
+    for d in durations:
+        rets = []
+        for idx in entry_indices:
+            if idx + d < len(closes):
+                rets.append(closes[idx + d] / closes[idx] - 1.0)
+        if rets:
+            win_count = sum(1 for r in rets if r > 0)
+            stats.append(
+                {
+                    "days": d,
+                    "n": len(rets),
+                    "winRate": round(win_count / len(rets) * 100, 1),
+                    "avg": round(sum(rets) / len(rets) * 100, 2),
+                    "min": round(min(rets) * 100, 1),
+                    "max": round(max(rets) * 100, 1),
+                }
+            )
+
+    return {
+        "current_rsi": round(curr_rsi, 1),
+        "events_count": len(entry_indices),
+        "stats": stats,
+    }
 
 
 def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
@@ -159,6 +203,7 @@ def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
             for b in bars
         ],
         "equity": [{"d": ts.strftime("%Y-%m-%d"), "v": round(v)} for ts, v in res.equity_curve],
+        "rsi_swing": compute_rsi_swing_stats(bars, cfg.rsi_period),
     }
 
 
