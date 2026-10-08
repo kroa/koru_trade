@@ -582,13 +582,13 @@ footer .mono { font-family: var(--f-mono); }
   var $ = function (id) { return document.getElementById(id); };
 
   /* ── 헤더 ─────────────────────────────────────── */
-  $("asof").textContent = D.generated + " 기준 · 최근 3년";
+  $("asof").textContent = D.generated + " 확정 봉 기준 · 갱신 " + D.updated + " · 최근 3년";
   $("hN").textContent = S.n;
   $("hTot").textContent = pct(S.total);
   $("hWr").textContent = Math.round(S.winRate * 100) + "%";
   $("hPf").textContent = S.pf.toFixed(2);
   $("hMdd").textContent = pct(S.mdd, 1);
-  $("foot").textContent = D.symbol + " · " + D.generated;
+  $("foot").textContent = D.symbol + " · " + D.generated + " (갱신 " + D.updated + ")";
 
   var STATS = [
     { k: "누적 수익률", v: pct(S.total), c: cls(S.total), n: "원화, 전 비용 반영" },

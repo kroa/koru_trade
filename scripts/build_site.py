@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import math
 import sys
 from collections.abc import Sequence
@@ -30,6 +31,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from _site_common import (  # noqa: E402
+    KST,
     SITE_PERIOD,
     WEEKDAY_KO,
     anonymize,
@@ -96,7 +98,9 @@ def compute_rsi_swing_stats(bars: Sequence[Bar], period: int = 14) -> dict[str, 
     }
 
 
-def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
+def build_payload(
+    bars: tuple[Bar, ...], cfg: StrategyConfig, *, now: dt.datetime | None = None
+) -> dict[str, Any]:
     """사이트가 읽는 JSON 전체를 만든다."""
     res = run_backtest(bars, cfg)
     metrics = compute_metrics(res.trades, res.equity_curve, res.initial_capital_krw)
@@ -112,9 +116,11 @@ def build_payload(bars: tuple[Bar, ...], cfg: StrategyConfig) -> dict[str, Any]:
     stop_pct = min(max(cfg.stop_atr_multiple * atr / price, cfg.min_stop_pct), cfg.max_stop_pct)
 
     last = bars[-1].ts
+    stamp = (now or dt.datetime.now(KST)).astimezone(KST)
     return {
         "symbol": cfg.symbol,
         "generated": last.strftime("%Y-%m-%d"),
+        "updated": stamp.strftime("%Y-%m-%d %H:%M"),
         # 이 판정이 걸린 장과 그다음 판정 시각. 페이지가 보는 사람의 시계로
         # "매수 시점이 지났나" 를 가린다 — _site_common.verdict_schedule 참고.
         "when": verdict_schedule(last.date()),

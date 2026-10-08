@@ -185,7 +185,8 @@ def build_payload(
         # 없으면 비교 대상이 "?" 가 되어 검사가 조용히 통과한다.
         "bar": bar_day.strftime("%Y-%m-%d"),
         "barDay": f"{bar_day:%m/%d}({WEEKDAY_KO[bar_day.weekday()]})",
-        "stamp": stamp.strftime("%Y.%m.%d") + " 판",
+        "stamp": stamp.strftime("%Y.%m.%d %H:%M") + " 갱신",
+        "updated": stamp.strftime("%Y-%m-%d %H:%M"),
         "allowed": bool(signal.allowed),
         "price": round(price, 2),
         "line": round(line, 2),

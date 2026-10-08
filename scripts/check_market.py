@@ -300,7 +300,12 @@ def format_report(
     return "\n".join(lines)
 
 
-def run_check(notify: bool = False, force_ai: bool = False, mode: str = "premarket") -> int:
+def run_check(
+    notify: bool = False,
+    force_ai: bool = False,
+    mode: str = "premarket",
+    window_only: bool = False,
+) -> int:
     """장전 체크 실행 본체."""
     use_utf8_console()
     mode_text = "오전 정기 브리핑" if mode == "morning" else "장전 시황 및 진입 점검"
@@ -361,6 +366,19 @@ def run_check(notify: bool = False, force_ai: bool = False, mode: str = "premark
 
     # 5. 텔레그램 발송 (요청 시)
     if notify:
+        if window_only:
+            now_kst = dt.datetime.now(KST).time()
+            if mode == "morning" and not (dt.time(11, 0) <= now_kst <= dt.time(12, 30)):
+                print(
+                    "[-] morning 브리핑 시간대(11:00~12:30 KST)가 아니므로 텔레그램 발송을 건너뜁니다."
+                )
+                return 0
+            if mode == "premarket" and not (dt.time(21, 0) <= now_kst <= dt.time(22, 30)):
+                print(
+                    "[-] premarket 브리핑 시간대(21:00~22:30 KST)가 아니므로 텔레그램 발송을 건너뜁니다."
+                )
+                return 0
+
         token = os.environ.get("TELEGRAM_BOT_TOKEN")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
         if token and chat_id:
@@ -386,9 +404,21 @@ def main() -> None:
         default="premarket",
         help="브리핑 모드: morning(오전 일봉확정) 또는 premarket(야간 개장전)",
     )
+    parser.add_argument(
+        "--window-only",
+        action="store_true",
+        help="해당 모드의 유효 시간대(morning: 11:00~12:30, premarket: 21:00~22:30)에만 발송",
+    )
     args = parser.parse_args()
 
-    sys.exit(run_check(notify=args.notify, force_ai=args.ai, mode=args.mode))
+    sys.exit(
+        run_check(
+            notify=args.notify,
+            force_ai=args.ai,
+            mode=args.mode,
+            window_only=args.window_only,
+        )
+    )
 
 
 if __name__ == "__main__":

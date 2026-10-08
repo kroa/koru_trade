@@ -21,7 +21,7 @@ REM  So a non-zero exit here is a normal outcome, not a failure
 REM  to retry blindly - the next run picks it up.
 REM
 REM  Register (run as the same user, from an elevated prompt):
-REM    schtasks /create /tn "KORU site" /tr "C:\Koru_Trade\scripts\update_site.bat" /sc daily /st 11:40 /f
+REM    schtasks /create /tn "KORU site" /tr "C:\Koru_Trade\scripts\update_site.bat" /sc hourly /mo 2 /f
 REM  Remove:
 REM    schtasks /delete /tn "KORU site" /f
 REM ============================================================
@@ -58,6 +58,6 @@ if errorlevel 1 (
     echo [%DATE% %TIME%] no change - skipped >> "%LOG%"
 )
 
-".venv\Scripts\python.exe" scripts\check_market.py --notify --mode morning >> "%LOG%" 2>&1
+".venv\Scripts\python.exe" scripts\check_market.py --notify --mode morning --window-only >> "%LOG%" 2>&1
 
 exit /b 0
